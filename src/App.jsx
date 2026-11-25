@@ -8,10 +8,10 @@ const CARS = [
     name: 'Apex Street Coupe',
     modelPaths: ['/models/starter.glb', '/models/starter/scene.gltf'],
     price: 0,
-    topSpeed: 2.3,
-    accel: 0.034,
-    handling: 0.034,
-    nitroPower: 3.6,
+    topSpeed: 2.35,
+    accel: 0.036,
+    handling: 0.035,
+    nitroPower: 3.65,
     enginePitch: 1.15,
   },
   {
@@ -19,10 +19,10 @@ const CARS = [
     name: 'V8 Phantom Muscle',
     modelPaths: ['/models/muscle.glb', '/models/muscle/scene.gltf'],
     price: 500,
-    topSpeed: 2.55,
-    accel: 0.04,
-    handling: 0.032,
-    nitroPower: 3.9,
+    topSpeed: 2.6,
+    accel: 0.042,
+    handling: 0.033,
+    nitroPower: 3.95,
     enginePitch: 0.92,
   },
   {
@@ -30,21 +30,21 @@ const CARS = [
     name: 'Lykan GT Supercar',
     modelPaths: ['/models/sportscar.glb', '/models/sportscar/scene.gltf'],
     price: 1200,
-    topSpeed: 2.85,
-    accel: 0.044,
-    handling: 0.038,
-    nitroPower: 4.3,
-    enginePitch: 1.32, // Tuned to the twin-turbo flat-6 / exotic hypercar scream
+    topSpeed: 2.9,
+    accel: 0.046,
+    handling: 0.039,
+    nitroPower: 4.35,
+    enginePitch: 1.32,
   },
   {
     id: 'hypercar',
     name: 'Zenith F1 Hypercar',
     modelPaths: ['/models/hypercar.glb', '/models/hypercar/scene.gltf'],
     price: 2500,
-    topSpeed: 3.2,
-    accel: 0.05,
-    handling: 0.042,
-    nitroPower: 4.8,
+    topSpeed: 3.25,
+    accel: 0.052,
+    handling: 0.043,
+    nitroPower: 4.85,
     enginePitch: 1.48,
   },
 ];
@@ -149,6 +149,13 @@ const TRACKS = [
 ];
 
 const TOTAL_LAPS = 2;
+
+function formatOrdinal(pos) {
+  if (pos === 1) return '1st';
+  if (pos === 2) return '2nd';
+  if (pos === 3) return '3rd';
+  return `${pos}th`;
+}
 
 function createAsphaltTexture() {
   const canvas = document.createElement('canvas');
@@ -558,10 +565,12 @@ export default function App() {
   const [selectedTrackId, setSelectedTrackId] = useState('city');
   const [flipCarModel, setFlipCarModel] = useState(false);
   const [modelStatus, setModelStatus] = useState('LOADING 3D MODEL...');
+  // 'menu' | 'countdown' | 'racing' | 'paused' | 'finished'
   const [gameState, setGameState] = useState('menu');
   const [countdownText, setCountdownText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [raceReward, setRaceReward] = useState(0);
+  const [raceSessionId, setRaceSessionId] = useState(0);
 
   const activeTrack = TRACKS.find((t) => t.id === selectedTrackId) || TRACKS[0];
   const initialMap = buildTrackMinimapData(activeTrack.points);
@@ -574,6 +583,7 @@ export default function App() {
     isBoosting: false,
     score: 0,
     lap: 1,
+    position: 1,
     airborne: false,
     minimapPath: initialMap.svgPath,
     playerDot: initialMap.project(0, 0),
@@ -611,6 +621,21 @@ export default function App() {
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
+
+  // Keyboard Escape / P shortcut for Pause & Resume
+  useEffect(() => {
+    const onPauseKey = (e) => {
+      if (e.code === 'Escape' || e.code === 'KeyP') {
+        setGameState((prev) => {
+          if (prev === 'racing') return 'paused';
+          if (prev === 'paused') return 'racing';
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('keydown', onPauseKey);
+    return () => window.removeEventListener('keydown', onPauseKey);
+  }, []);
 
   const sceneObjectsRef = useRef(null);
 
@@ -686,7 +711,7 @@ export default function App() {
     swapCarModelInScene(car);
   }, [previewCarId]);
 
-  // Asphalt 8 Style Lykan HyperSport DSP Audio Engine (Zero Voice Over)
+  // Asphalt 8 Style Car DSP Audio Engine
   const audioRef = useRef(null);
   const initAudio = () => {
     if (audioRef.current) return;
@@ -694,7 +719,6 @@ export default function App() {
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
 
-    // 1. High-Revving Flat-6 / Twin-Turbo Harmonic Engine Stack
     const subOsc = ctx.createOscillator();
     const mainOsc = ctx.createOscillator();
     const screamOsc = ctx.createOscillator();
@@ -705,7 +729,6 @@ export default function App() {
     screamOsc.type = 'sawtooth';
     turboWhineOsc.type = 'sine';
 
-    // Metallic Exhaust Resonance + Waveshaper
     const shaper = ctx.createWaveShaper();
     shaper.curve = makeExhaustDistortionCurve(48);
     shaper.oversample = '2x';
@@ -715,7 +738,6 @@ export default function App() {
     engineFilter.frequency.value = 420;
     engineFilter.Q.value = 5.0;
 
-    // Bandpass presence peak for the signature Asphalt 8 metallic hypercar rasp
     const raspPeak = ctx.createBiquadFilter();
     raspPeak.type = 'peaking';
     raspPeak.frequency.value = 1150;
@@ -752,7 +774,6 @@ export default function App() {
     screamOsc.start();
     turboWhineOsc.start();
 
-    // Shared Noise Buffer
     const bufferSize = ctx.sampleRate * 2;
     const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = noiseBuffer.getChannelData(0);
@@ -760,7 +781,6 @@ export default function App() {
       data[i] = Math.random() * 2 - 1;
     }
 
-    // 2. Glassy High-Pressure "Perfect Nitro" Jet Turbine Whoosh
     const nitroNoise = ctx.createBufferSource();
     nitroNoise.buffer = noiseBuffer;
     nitroNoise.loop = true;
@@ -776,7 +796,6 @@ export default function App() {
     nitroGain.connect(ctx.destination);
     nitroNoise.start();
 
-    // 3. Asphalt High-Speed Drift Tire Squeal
     const screechNoise = ctx.createBufferSource();
     screechNoise.buffer = noiseBuffer;
     screechNoise.loop = true;
@@ -809,7 +828,6 @@ export default function App() {
     };
   };
 
-  // Exhaust Backfire Crackle + Twin-Turbo Blowoff Flutter
   const playExhaustPopAndTurbo = () => {
     if (!soundEnabledRef.current || !audioRef.current) return;
     const { ctx, noiseBuffer } = audioRef.current;
@@ -845,13 +863,11 @@ export default function App() {
     turboOsc.stop(now + 0.13);
   };
 
-  // Asphalt 8 "Perfect Nitro" Activation Surge (Sub Punch + Airy Jet Whoosh)
   const playPerfectNitroSurge = () => {
     if (!soundEnabledRef.current || !audioRef.current) return;
     const { ctx, noiseBuffer } = audioRef.current;
     const now = ctx.currentTime;
 
-    // Sub punch
     const boomOsc = ctx.createOscillator();
     const boomGain = ctx.createGain();
     boomOsc.type = 'sine';
@@ -864,7 +880,6 @@ export default function App() {
     boomOsc.start(now);
     boomOsc.stop(now + 0.24);
 
-    // Sweeping glassy turbine intake surge
     const surgeSrc = ctx.createBufferSource();
     surgeSrc.buffer = noiseBuffer;
     const surgeFilter = ctx.createBiquadFilter();
@@ -884,13 +899,11 @@ export default function App() {
     surgeSrc.stop(now + 0.26);
   };
 
-  // Asphalt 8 Takedown Metallic Crunch + Glass Scatter
   const playTakedownCrunch = () => {
     if (!soundEnabledRef.current || !audioRef.current) return;
     const { ctx, noiseBuffer } = audioRef.current;
     const now = ctx.currentTime;
 
-    // Heavy chassis slam
     const slamOsc = ctx.createOscillator();
     const slamGain = ctx.createGain();
     slamOsc.type = 'sawtooth';
@@ -903,7 +916,6 @@ export default function App() {
     slamOsc.start(now);
     slamOsc.stop(now + 0.26);
 
-    // High-frequency metallic crunch & glass scatter
     const crashSrc = ctx.createBufferSource();
     crashSrc.buffer = noiseBuffer;
     const crashFilter = ctx.createBiquadFilter();
@@ -921,7 +933,6 @@ export default function App() {
     crashSrc.stop(now + 0.32);
   };
 
-  // Crisp Arcade Coin / Nitro Pickup Chime
   const playPickupChime = () => {
     if (!soundEnabledRef.current || !audioRef.current) return;
     const { ctx } = audioRef.current;
@@ -940,7 +951,6 @@ export default function App() {
     osc.stop(now + 0.16);
   };
 
-  // Garage Mechanical Clunk & Countdown Beep
   const playMechanicalClick = (pitch = 240) => {
     if (!soundEnabledRef.current) return;
     initAudio();
@@ -950,7 +960,7 @@ export default function App() {
     const now = audio.ctx.currentTime;
 
     const osc = audio.ctx.createOscillator();
-    const gain = audio.ctx.createGain();
+    const gain = audio.createGain();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(pitch, now);
     osc.frequency.exponentialRampToValueAtTime(pitch * 0.45, now + 0.07);
@@ -983,7 +993,15 @@ export default function App() {
     }
   };
 
+  const countdownTimersRef = useRef([]);
+  const clearCountdownTimers = () => {
+    countdownTimersRef.current.forEach((id) => clearTimeout(id));
+    countdownTimersRef.current = [];
+  };
+
   const startRace = () => {
+    clearCountdownTimers();
+    setRaceSessionId((s) => s + 1);
     setPreviewCarId(equippedCarId);
     initAudio();
     if (audioRef.current?.ctx.state === 'suspended') audioRef.current.ctx.resume();
@@ -994,23 +1012,30 @@ export default function App() {
     setCountdownText('3');
     playMechanicalClick(440);
 
-    setTimeout(() => {
-      setCountdownText('2');
-      playMechanicalClick(440);
-    }, 850);
+    countdownTimersRef.current.push(
+      setTimeout(() => {
+        setCountdownText('2');
+        playMechanicalClick(440);
+      }, 850),
+      setTimeout(() => {
+        setCountdownText('1');
+        playMechanicalClick(440);
+      }, 1700),
+      setTimeout(() => {
+        setCountdownText('GO!');
+        playPerfectNitroSurge();
+        setGameState('racing');
+      }, 2550),
+      setTimeout(() => setCountdownText(''), 3300)
+    );
+  };
 
-    setTimeout(() => {
-      setCountdownText('1');
-      playMechanicalClick(440);
-    }, 1700);
-
-    setTimeout(() => {
-      setCountdownText('GO!');
-      playPerfectNitroSurge();
-      setGameState('racing');
-    }, 2550);
-
-    setTimeout(() => setCountdownText(''), 3300);
+  const exitToGarage = () => {
+    clearCountdownTimers();
+    setCountdownText('');
+    setGameState('menu');
+    setRaceSessionId((s) => s + 1);
+    playMechanicalClick(200);
   };
 
   useEffect(() => {
@@ -1190,10 +1215,42 @@ export default function App() {
       pickups.push(pickup);
     }
 
+    // Competitive, Fast AI Bots with Dynamic Lane-Changing & Lap Tracking
+    const LANE_SLOTS = [-8.5, -3.0, 3.0, 8.5];
     const bots = [
-      { mesh: buildBotCarMesh('#10b981'), color: '#10b981', t: 0.008, speedT: 0.00024, offset: -6.5 },
-      { mesh: buildBotCarMesh('#f97316'), color: '#f97316', t: 0.013, speedT: 0.00027, offset: 6.5 },
-      { mesh: buildBotCarMesh('#3b82f6'), color: '#3b82f6', t: 0.018, speedT: 0.00022, offset: -6.5 },
+      {
+        mesh: buildBotCarMesh('#10b981'),
+        color: '#10b981',
+        t: 0.008,
+        lap: 1,
+        baseSpeedT: 0.00043,
+        currentSpeedT: 0.00043,
+        offset: -7.5,
+        targetOffset: -7.5,
+        laneTimer: 110,
+      },
+      {
+        mesh: buildBotCarMesh('#f97316'),
+        color: '#f97316',
+        t: 0.013,
+        lap: 1,
+        baseSpeedT: 0.00046,
+        currentSpeedT: 0.00046,
+        offset: 7.5,
+        targetOffset: 7.5,
+        laneTimer: 160,
+      },
+      {
+        mesh: buildBotCarMesh('#3b82f6'),
+        color: '#3b82f6',
+        t: 0.018,
+        lap: 1,
+        baseSpeedT: 0.0004,
+        currentSpeedT: 0.0004,
+        offset: -3.0,
+        targetOffset: -3.0,
+        laneTimer: 80,
+      },
     ];
     bots.forEach((b) => {
       b.mesh.visible = false;
@@ -1238,6 +1295,19 @@ export default function App() {
       }
 
       const mode = gameStateRef.current;
+
+      // Silence engine audio cleanly when paused
+      if (mode === 'paused') {
+        if (audioRef.current) {
+          const t = audioRef.current.ctx.currentTime;
+          audioRef.current.masterEngineGain.gain.setTargetAtTime(0, t, 0.04);
+          audioRef.current.turboWhineGain.gain.setTargetAtTime(0, t, 0.04);
+          audioRef.current.nitroGain.gain.setTargetAtTime(0, t, 0.04);
+          audioRef.current.screechGain.gain.setTargetAtTime(0, t, 0.04);
+        }
+        renderer.render(scene, camera);
+        return;
+      }
 
       if (mode === 'menu') {
         menuOrbitAngle += 0.009;
@@ -1319,7 +1389,6 @@ export default function App() {
 
       const isTurningHard = (left || right) && speed > 1.35 && playerCar.position.y <= 0.05;
 
-      // Update Lykan HyperSport / Asphalt 8 DSP Audio
       if (audioRef.current) {
         const audio = audioRef.current;
         const now = audio.ctx.currentTime;
@@ -1332,7 +1401,6 @@ export default function App() {
           audio.mainOsc.frequency.setTargetAtTime(baseHz, now, 0.03);
           audio.screamOsc.frequency.setTargetAtTime(baseHz * 2.02, now, 0.03);
 
-          // High-pitched twin-turbo spool whine
           audio.turboWhineOsc.frequency.setTargetAtTime(950 + rpmNorm * 2200 + (wantsBoost ? 450 : 0), now, 0.04);
           audio.turboWhineGain.gain.setTargetAtTime(wantsThrottle || wantsBoost ? 0.024 : 0.004, now, 0.05);
 
@@ -1391,9 +1459,98 @@ export default function App() {
         speed *= 0.96;
       }
 
+      const playerTrackT = closestIdx / samplePoints.length;
+      const playerTotalProgress = (currentLap - 1) + playerTrackT;
+
       if (closestIdx > 220 && closestIdx < 280) {
         passedCheckpoint = true;
       }
+
+      // Dynamic AI Bots: Faster Pace, Rubber-Banding & Smooth Lane Changing
+      const botDots = [];
+      let aheadCount = 0;
+
+      bots.forEach((bot) => {
+        if (canDrive) {
+          const botTotalProgress = (bot.lap - 1) + bot.t;
+          const gapToPlayer = playerTotalProgress - botTotalProgress;
+
+          // Rubber-banding so bots stay competitive and speed up when behind
+          let targetSpeedT = bot.baseSpeedT;
+          if (gapToPlayer > 0.03) {
+            targetSpeedT = bot.baseSpeedT * 1.26;
+          } else if (gapToPlayer < -0.12) {
+            targetSpeedT = bot.baseSpeedT * 0.92;
+          }
+          bot.currentSpeedT = THREE.MathUtils.lerp(bot.currentSpeedT, targetSpeedT, 0.04);
+
+          const prevT = bot.t;
+          bot.t += bot.currentSpeedT;
+          if (bot.t >= 1) {
+            bot.t -= 1;
+            if (prevT > 0.8) bot.lap += 1;
+          }
+
+          // Periodic lane switching + evasive swerve when player approaches closely
+          bot.laneTimer -= 1;
+          const distToPlayer = playerCar.position.distanceTo(bot.mesh.position);
+          if (distToPlayer < 24 && Math.abs(gapToPlayer) < 0.025 && bot.laneTimer < 90) {
+            const alternatives = LANE_SLOTS.filter((l) => Math.abs(l - bot.targetOffset) > 4);
+            bot.targetOffset = alternatives[Math.floor(Math.random() * alternatives.length)];
+            bot.laneTimer = 140 + Math.floor(Math.random() * 100);
+          } else if (bot.laneTimer <= 0) {
+            bot.targetOffset = LANE_SLOTS[Math.floor(Math.random() * LANE_SLOTS.length)];
+            bot.laneTimer = 150 + Math.floor(Math.random() * 150);
+          }
+
+          const prevOffset = bot.offset;
+          bot.offset = THREE.MathUtils.lerp(bot.offset, bot.targetOffset, 0.035);
+          const lateralDelta = bot.offset - prevOffset;
+
+          const pt = trackCurve.getPointAt(bot.t);
+          const tan = trackCurve.getTangentAt(bot.t).normalize();
+          const norm = new THREE.Vector3(-tan.z, 0, tan.x);
+
+          bot.mesh.position.copy(pt).addScaledVector(norm, bot.offset);
+          // Tilt heading slightly during lane changes for natural steering look
+          const lookPoint = bot.mesh.position
+            .clone()
+            .sub(tan)
+            .addScaledVector(norm, -lateralDelta * 1.8);
+          bot.mesh.lookAt(lookPoint);
+
+          if (distToPlayer < 3.4) {
+            if (wantsBoost) {
+              bot.t = Math.max(0, bot.t - 0.02);
+              bot.currentSpeedT = bot.baseSpeedT * 0.45;
+              nitro = Math.min(100, nitro + 30);
+              score += 500;
+              setCoins((c) => c + 50);
+              playTakedownCrunch();
+            } else {
+              speed *= 0.68;
+              playTakedownCrunch();
+            }
+          }
+        } else {
+          const pt = trackCurve.getPointAt(bot.t);
+          const tan = trackCurve.getTangentAt(bot.t).normalize();
+          const norm = new THREE.Vector3(-tan.z, 0, tan.x);
+          bot.mesh.position.copy(pt).addScaledVector(norm, bot.offset);
+          bot.mesh.lookAt(bot.mesh.position.clone().sub(tan));
+        }
+
+        const botProgressNow = (bot.lap - 1) + bot.t;
+        if (botProgressNow > playerTotalProgress) {
+          aheadCount += 1;
+        }
+
+        const dot = minimapData.project(bot.mesh.position.x, bot.mesh.position.z);
+        botDots.push({ x: dot.x, y: dot.y, color: bot.color });
+      });
+
+      const currentPosition = aheadCount + 1;
+
       if (passedCheckpoint && (closestIdx < 20 || closestIdx > 480)) {
         passedCheckpoint = false;
         if (currentLap < TOTAL_LAPS) {
@@ -1401,7 +1558,8 @@ export default function App() {
           score += 1500;
           playPerfectNitroSurge();
         } else if (gameStateRef.current === 'racing') {
-          const earned = 500 + Math.floor(score / 12);
+          const positionBonus = currentPosition === 1 ? 600 : currentPosition === 2 ? 350 : currentPosition === 3 ? 200 : 100;
+          const earned = positionBonus + Math.floor(score / 12);
           setRaceReward(earned);
           setCoins((c) => c + earned);
           setGameState('finished');
@@ -1452,33 +1610,6 @@ export default function App() {
         }
       });
 
-      const botDots = [];
-      bots.forEach((bot) => {
-        if (canDrive) bot.t = (bot.t + bot.speedT) % 1;
-        const pt = trackCurve.getPointAt(bot.t);
-        const tan = trackCurve.getTangentAt(bot.t).normalize();
-        const norm = new THREE.Vector3(-tan.z, 0, tan.x);
-
-        bot.mesh.position.copy(pt).addScaledVector(norm, bot.offset);
-        bot.mesh.lookAt(bot.mesh.position.clone().sub(tan));
-
-        if (canDrive && playerCar.position.distanceTo(bot.mesh.position) < 3.4) {
-          if (wantsBoost) {
-            bot.t = (bot.t + 0.03) % 1;
-            nitro = Math.min(100, nitro + 30);
-            score += 500;
-            setCoins((c) => c + 50);
-            playTakedownCrunch();
-          } else {
-            speed *= 0.65;
-            playTakedownCrunch();
-          }
-        }
-
-        const dot = minimapData.project(bot.mesh.position.x, bot.mesh.position.z);
-        botDots.push({ x: dot.x, y: dot.y, color: bot.color });
-      });
-
       const targetFov = wantsBoost ? 82 : 62 + speed * 4.5;
       camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
       camera.updateProjectionMatrix();
@@ -1501,6 +1632,7 @@ export default function App() {
         isBoosting: wantsBoost,
         score,
         lap: currentLap,
+        position: currentPosition,
         airborne: playerCar.position.y > 0.2,
         minimapPath: minimapData.svgPath,
         playerDot: minimapData.project(playerCar.position.x, playerCar.position.z),
@@ -1532,7 +1664,7 @@ export default function App() {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [selectedTrackId]);
+  }, [selectedTrackId, raceSessionId]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none">
@@ -1544,7 +1676,7 @@ export default function App() {
           <div className="flex flex-wrap justify-between items-start gap-4 pointer-events-auto">
             <div>
               <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-1.5">
-                3 Long-Distance Circuits • Authentic Supercar Exhaust & Turbo Audio
+                3 Long-Distance Circuits • Competitive AI Racers
               </div>
               <h1 className="text-4xl md:text-5xl font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-fuchsia-500">
                 NITRO HORIZON 3D
@@ -1683,7 +1815,7 @@ export default function App() {
                           <div className="w-full h-1.5 bg-slate-800 rounded-full mt-0.5">
                             <div
                               className="h-full bg-cyan-400 rounded-full"
-                              style={{ width: `${(car.topSpeed / 3.3) * 100}%` }}
+                              style={{ width: `${(car.topSpeed / 3.35) * 100}%` }}
                             />
                           </div>
                         </div>
@@ -1695,7 +1827,7 @@ export default function App() {
                           <div className="w-full h-1.5 bg-slate-800 rounded-full mt-0.5">
                             <div
                               className="h-full bg-fuchsia-400 rounded-full"
-                              style={{ width: `${(car.nitroPower / 4.9) * 100}%` }}
+                              style={{ width: `${(car.nitroPower / 4.95) * 100}%` }}
                             />
                           </div>
                         </div>
@@ -1730,7 +1862,8 @@ export default function App() {
               <div className="text-xs text-slate-400">
                 <span className="text-white font-bold">WASD / Arrows</span> Drive •{' '}
                 <span className="text-cyan-400 font-bold">SPACE</span> Nitro •{' '}
-                <span className="text-cyan-400 font-bold">{activeTrack.name}</span> ({equippedCar.name})
+                <span className="text-slate-300 font-bold">ESC</span> Pause •{' '}
+                <span className="text-cyan-400 font-bold">{activeTrack.name}</span>
               </div>
               <button
                 onClick={startRace}
@@ -1744,7 +1877,7 @@ export default function App() {
       )}
 
       {/* 3-2-1-GO! COUNTDOWN */}
-      {countdownText && (
+      {countdownText && gameState !== 'paused' && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-8xl font-black italic text-transparent bg-clip-text bg-gradient-to-b from-white to-cyan-400 drop-shadow-[0_0_25px_rgba(6,182,212,0.8)] animate-pulse">
             {countdownText}
@@ -1756,7 +1889,26 @@ export default function App() {
       {gameState !== 'menu' && (
         <>
           <div className="absolute top-4 left-4 right-4 flex items-start justify-between pointer-events-none">
+            {/* Top-Left: Position (1st/2nd/3rd/4th), Lap, Score, Coins */}
             <div className="flex items-center gap-4 bg-slate-900/85 border border-cyan-500/40 backdrop-blur-md px-5 py-2.5 rounded-xl">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Pos</div>
+                <div
+                  className={`text-2xl font-black font-mono ${
+                    hud.position === 1
+                      ? 'text-amber-400'
+                      : hud.position === 2
+                      ? 'text-slate-200'
+                      : hud.position === 3
+                      ? 'text-amber-600'
+                      : 'text-slate-400'
+                  }`}
+                >
+                  {formatOrdinal(hud.position)}
+                  <span className="text-xs text-slate-500 font-bold"> / 4</span>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-slate-700" />
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Lap</div>
                 <div className="text-2xl font-black text-cyan-400 font-mono">
@@ -1770,50 +1922,70 @@ export default function App() {
                   {hud.score.toLocaleString()}
                 </div>
               </div>
-              <div className="h-8 w-px bg-slate-700" />
-              <div>
+              <div className="h-8 w-px bg-slate-700 hidden sm:block" />
+              <div className="hidden sm:block">
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Coins</div>
                 <div className="text-xl font-black text-amber-400 font-mono">
                   {coins.toLocaleString()}
                 </div>
               </div>
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="ml-1 px-2.5 py-1 rounded-lg bg-slate-800 text-xs font-bold text-slate-200 pointer-events-auto cursor-pointer"
-              >
-                {soundEnabled ? '🔊' : '🔇'}
-              </button>
             </div>
 
-            {/* DYNAMIC SVG CIRCUIT MINIMAP */}
-            <div className="bg-slate-900/85 border border-slate-700 backdrop-blur-md p-2.5 rounded-2xl shadow-xl">
-              <svg viewBox="0 0 140 140" className="w-32 h-32">
-                <path
-                  d={hud.minimapPath}
-                  fill="none"
-                  stroke="#334155"
-                  strokeWidth="7"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d={hud.minimapPath}
-                  fill="none"
-                  stroke={activeTrack.accentHex}
-                  strokeWidth="2.5"
-                  strokeLinejoin="round"
-                />
-                {hud.botDots.map((b, idx) => (
-                  <circle key={idx} cx={b.x} cy={b.y} r="3.5" fill={b.color} />
-                ))}
-                <circle
-                  cx={hud.playerDot.x}
-                  cy={hud.playerDot.y}
-                  r="4.8"
-                  fill="#ffffff"
-                  stroke={activeTrack.accentHex}
-                  strokeWidth="2.5"
-                />
-              </svg>
+            {/* Top-Right: Pause/Exit Controls + Dynamic SVG Minimap */}
+            <div className="flex items-start gap-2.5">
+              <div className="flex flex-col gap-2 pointer-events-auto">
+                <button
+                  onClick={() =>
+                    setGameState((prev) => (prev === 'paused' ? 'racing' : 'paused'))
+                  }
+                  disabled={gameState === 'countdown' || gameState === 'finished'}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-cyan-400 text-white text-xs font-black tracking-wider transition cursor-pointer disabled:opacity-40"
+                >
+                  {gameState === 'paused' ? '▶ RESUME' : '⏸ PAUSE'}
+                </button>
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-slate-700 hover:border-cyan-400 text-slate-200 text-xs font-bold transition cursor-pointer"
+                >
+                  {soundEnabled ? '🔊 SFX ON' : '🔇 MUTED'}
+                </button>
+                <button
+                  onClick={exitToGarage}
+                  className="px-3.5 py-2 rounded-xl bg-slate-900/90 border border-red-500/40 hover:border-red-400 text-red-300 text-xs font-black tracking-wider transition cursor-pointer"
+                >
+                  ✕ EXIT
+                </button>
+              </div>
+
+              <div className="bg-slate-900/85 border border-slate-700 backdrop-blur-md p-2.5 rounded-2xl shadow-xl">
+                <svg viewBox="0 0 140 140" className="w-32 h-32">
+                  <path
+                    d={hud.minimapPath}
+                    fill="none"
+                    stroke="#334155"
+                    strokeWidth="7"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d={hud.minimapPath}
+                    fill="none"
+                    stroke={activeTrack.accentHex}
+                    strokeWidth="2.5"
+                    strokeLinejoin="round"
+                  />
+                  {hud.botDots.map((b, idx) => (
+                    <circle key={idx} cx={b.x} cy={b.y} r="3.5" fill={b.color} />
+                  ))}
+                  <circle
+                    cx={hud.playerDot.x}
+                    cy={hud.playerDot.y}
+                    r="4.8"
+                    fill="#ffffff"
+                    stroke={activeTrack.accentHex}
+                    strokeWidth="2.5"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
 
@@ -1855,10 +2027,46 @@ export default function App() {
         </>
       )}
 
+      {/* PAUSE MODAL OVERLAY */}
+      {gameState === 'paused' && (
+        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-md flex items-center justify-center z-20">
+          <div className="bg-slate-900 border border-cyan-500/40 p-7 rounded-2xl text-center w-full max-w-sm shadow-2xl">
+            <div className="text-xs font-bold tracking-widest text-cyan-400 uppercase mb-1">
+              {activeTrack.name}
+            </div>
+            <h2 className="text-3xl font-black italic text-white mb-6">RACE PAUSED</h2>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => setGameState('racing')}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-slate-950 font-black tracking-wider text-sm hover:brightness-110 transition cursor-pointer"
+              >
+                ▶ RESUME RACE
+              </button>
+              <button
+                onClick={startRace}
+                className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold tracking-wider text-sm transition cursor-pointer"
+              >
+                ↻ RESTART CIRCUIT
+              </button>
+              <button
+                onClick={exitToGarage}
+                className="w-full py-3 rounded-xl bg-slate-950 hover:bg-red-950/50 border border-red-500/40 text-red-300 font-bold tracking-wider text-sm transition cursor-pointer"
+              >
+                ✕ EXIT TO GARAGE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FINISH OVERLAY */}
       {gameState === 'finished' && (
-        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center">
+        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center z-20">
           <div className="bg-slate-900 border border-cyan-500/50 p-8 rounded-2xl text-center max-w-sm">
+            <div className="inline-block px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-widest mb-2">
+              Finished {formatOrdinal(hud.position)} Place
+            </div>
             <h2 className="text-3xl font-black text-cyan-400 mb-2">CIRCUIT COMPLETE!</h2>
             <p className="text-slate-300 mb-2">
               Stunt Score:{' '}
@@ -1867,12 +2075,20 @@ export default function App() {
             <p className="text-amber-400 font-black text-lg mb-5">
               +{raceReward.toLocaleString()} COINS EARNED!
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl transition cursor-pointer"
-            >
-              RETURN TO GARAGE
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={startRace}
+                className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl transition cursor-pointer"
+              >
+                RACE AGAIN
+              </button>
+              <button
+                onClick={exitToGarage}
+                className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl transition cursor-pointer"
+              >
+                GARAGE
+              </button>
+            </div>
           </div>
         </div>
       )}
