@@ -13,6 +13,7 @@ const CARS = [
     handling: 0.035,
     nitroPower: 3.65,
     enginePitch: 1.15,
+    fallbackColor: '#ef4444',
   },
   {
     id: 'muscle',
@@ -24,6 +25,7 @@ const CARS = [
     handling: 0.033,
     nitroPower: 3.95,
     enginePitch: 0.92,
+    fallbackColor: '#f97316',
   },
   {
     id: 'supercar',
@@ -35,6 +37,7 @@ const CARS = [
     handling: 0.039,
     nitroPower: 4.35,
     enginePitch: 1.32,
+    fallbackColor: '#06b6d4',
   },
   {
     id: 'hypercar',
@@ -46,6 +49,7 @@ const CARS = [
     handling: 0.043,
     nitroPower: 4.85,
     enginePitch: 1.48,
+    fallbackColor: '#a855f7',
   },
 ];
 
@@ -54,12 +58,10 @@ const TRACKS = [
     id: 'city',
     name: 'Neon Metropolis',
     subtitle: 'Midnight Highway • 4.8 KM Loop',
-    skyTop: '#020617',
-    skyBottom: '#0f172a',
-    fogColor: 0x060b19,
-    fogDensity: 0.00095,
-    groundBase: '#090d16',
-    groundGrain: '#1e293b',
+    skyColor: 0x050814,
+    fogColor: 0x050814,
+    fogDensity: 0.001,
+    groundColor: 0x090d16,
     curbPrimary: '#06b6d4',
     curbSecondary: '#0f172a',
     accentHex: '#06b6d4',
@@ -86,12 +88,10 @@ const TRACKS = [
     id: 'jungle',
     name: 'Emerald Amazon',
     subtitle: 'Rainforest Canopy • 5.4 KM Loop',
-    skyTop: '#064e3b',
-    skyBottom: '#a7f3d0',
-    fogColor: 0x0d3b2e,
-    fogDensity: 0.00105,
-    groundBase: '#0c2e1c',
-    groundGrain: '#14532d',
+    skyColor: 0x082f23,
+    fogColor: 0x082f23,
+    fogDensity: 0.0011,
+    groundColor: 0x0c2e1c,
     curbPrimary: '#eab308',
     curbSecondary: '#14532d',
     accentHex: '#10b981',
@@ -118,12 +118,10 @@ const TRACKS = [
     id: 'desert',
     name: 'Sahara Canyon',
     subtitle: 'Red Rock Switchbacks • 5.8 KM Loop',
-    skyTop: '#7c2d12',
-    skyBottom: '#fed7aa',
-    fogColor: 0x5c240c,
-    fogDensity: 0.0009,
-    groundBase: '#78350f',
-    groundGrain: '#92400e',
+    skyColor: 0x431407,
+    fogColor: 0x431407,
+    fogDensity: 0.00095,
+    groundColor: 0x78350f,
     curbPrimary: '#ef4444',
     curbSecondary: '#fef3c7',
     accentHex: '#f59e0b',
@@ -159,108 +157,36 @@ function formatOrdinal(pos) {
 
 function createAsphaltTexture() {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
+  canvas.width = 256;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
 
   ctx.fillStyle = '#181c24';
-  ctx.fillRect(0, 0, 512, 512);
-
-  for (let i = 0; i < 16000; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const shade = 20 + Math.floor(Math.random() * 28);
-    ctx.fillStyle = `rgb(${shade},${shade + 2},${shade + 5})`;
-    ctx.fillRect(x, y, 2, 2);
-  }
-
-  ctx.fillStyle = 'rgba(8, 10, 14, 0.35)';
-  ctx.fillRect(110, 0, 55, 512);
-  ctx.fillRect(347, 0, 55, 512);
+  ctx.fillRect(0, 0, 256, 256);
 
   ctx.fillStyle = '#eab308';
-  ctx.fillRect(18, 0, 8, 512);
-  ctx.fillRect(486, 0, 8, 512);
+  ctx.fillRect(8, 0, 5, 256);
+  ctx.fillRect(243, 0, 5, 256);
 
   ctx.fillStyle = '#f8fafc';
-  ctx.fillRect(252, 32, 8, 190);
-  ctx.fillRect(252, 288, 8, 190);
+  ctx.fillRect(126, 16, 4, 95);
+  ctx.fillRect(126, 144, 4, 95);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
   return tex;
 }
 
 function createCurbTexture(colorA, colorB) {
   const canvas = document.createElement('canvas');
-  canvas.width = 64;
-  canvas.height = 128;
+  canvas.width = 32;
+  canvas.height = 64;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = colorA;
-  ctx.fillRect(0, 0, 64, 64);
+  ctx.fillRect(0, 0, 32, 32);
   ctx.fillStyle = colorB;
-  ctx.fillRect(0, 64, 64, 64);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  return tex;
-}
-
-function createGroundTexture(baseHex, grainHex) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = baseHex;
-  ctx.fillRect(0, 0, 256, 256);
-  ctx.fillStyle = grainHex;
-  for (let i = 0; i < 3500; i++) {
-    ctx.fillRect(Math.random() * 256, Math.random() * 256, 3, 3);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(90, 90);
-  return tex;
-}
-
-function createSkyDome(topHex, bottomHex) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 32;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  const grad = ctx.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, topHex);
-  grad.addColorStop(0.55, bottomHex);
-  grad.addColorStop(1, bottomHex);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 32, 256);
-  const tex = new THREE.CanvasTexture(canvas);
-  return new THREE.Mesh(
-    new THREE.SphereGeometry(3600, 24, 16),
-    new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false })
-  );
-}
-
-function createBuildingWindowTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#090d16';
-  ctx.fillRect(0, 0, 128, 256);
-
-  for (let y = 8; y < 248; y += 14) {
-    for (let x = 8; x < 120; x += 16) {
-      const lit = Math.random();
-      if (lit > 0.35) {
-        ctx.fillStyle = lit > 0.85 ? '#38bdf8' : lit > 0.6 ? '#fef08a' : '#94a3b8';
-        ctx.fillRect(x, y, 9, 8);
-      }
-    }
-  }
+  ctx.fillRect(0, 32, 32, 32);
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
@@ -268,7 +194,7 @@ function createBuildingWindowTexture() {
 }
 
 function makeExhaustDistortionCurve(amount = 55) {
-  const nSamples = 44100;
+  const nSamples = 8192;
   const curve = new Float32Array(nSamples);
   const deg = Math.PI / 180;
   for (let i = 0; i < nSamples; ++i) {
@@ -280,7 +206,7 @@ function makeExhaustDistortionCurve(amount = 55) {
 
 function buildTrackMinimapData(points) {
   const curve = new THREE.CatmullRomCurve3(points, true);
-  const sampled = curve.getPoints(160);
+  const sampled = curve.getPoints(140);
 
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   sampled.forEach((p) => {
@@ -348,7 +274,7 @@ function AnalogDial({ value, max, label, accentColor }) {
   );
 }
 
-function buildBotCarMesh(colorHex) {
+function buildSleekCarMesh(colorHex) {
   const group = new THREE.Group();
   const paintMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(colorHex),
@@ -361,13 +287,16 @@ function buildBotCarMesh(colorHex) {
     roughness: 0.15,
   });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.62, 4.5), paintMat);
-  body.position.y = 0.58;
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.5, 2.0), darkMat);
-  cabin.position.set(0, 1.1, -0.1);
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(2.25, 0.14, 0.5), paintMat);
-  wing.position.set(0, 1.18, 2.0);
-  group.add(body, cabin, wing);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.56, 4.6), paintMat);
+  body.position.y = 0.54;
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.36, 1.4), paintMat);
+  nose.position.set(0, 0.44, -1.85);
+  nose.rotation.x = 0.16;
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.48, 2.0), darkMat);
+  cabin.position.set(0, 1.02, -0.1);
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.12, 0.5), paintMat);
+  wing.position.set(0, 1.2, 2.05);
+  group.add(body, nose, cabin, wing);
 
   const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.36, 16);
   wheelGeo.rotateZ(Math.PI / 2);
@@ -387,7 +316,7 @@ function buildBotCarMesh(colorHex) {
 }
 
 function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
-  const clearPoints = trackCurve.getPoints(320);
+  const clearPoints = trackCurve.getPoints(240);
   const isNearRoad = (x, z, minDist) => {
     const minSq = minDist * minDist;
     for (let i = 0; i < clearPoints.length; i++) {
@@ -405,7 +334,7 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
     color: trackId === 'city' ? 0x38bdf8 : trackId === 'jungle' ? 0xfef08a : 0xfb923c,
   });
 
-  const poleCount = 45;
+  const poleCount = 40;
   const poles = new THREE.InstancedMesh(poleGeo, poleMat, poleCount * 2);
   const lamps = new THREE.InstancedMesh(lampGeo, lampMat, poleCount * 2);
   const dummy = new THREE.Object3D();
@@ -436,13 +365,13 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
   envGroup.add(poles, lamps);
 
   const spots = [];
-  for (let i = 0; i < 720 && spots.length < 460; i++) {
+  for (let i = 0; i < 520 && spots.length < 340; i++) {
     const t = Math.random();
     const pt = trackCurve.getPointAt(t);
     const tan = trackCurve.getTangentAt(t).normalize();
     const norm = new THREE.Vector3(-tan.z, 0, tan.x);
     const side = Math.random() < 0.5 ? -1 : 1;
-    const dist = roadWidth * 0.85 + 12 + Math.random() * 160;
+    const dist = roadWidth * 0.85 + 14 + Math.random() * 150;
     const x = pt.x + norm.x * side * dist;
     const z = pt.z + norm.z * side * dist;
 
@@ -452,15 +381,11 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
   }
 
   if (trackId === 'city') {
-    const windowTex = createBuildingWindowTexture();
     const towerGeo = new THREE.BoxGeometry(1, 1, 1);
     const towerMat = new THREE.MeshStandardMaterial({
-      map: windowTex,
-      emissiveMap: windowTex,
-      emissive: new THREE.Color(0xffffff),
-      emissiveIntensity: 0.75,
+      color: 0x0f172a,
       roughness: 0.3,
-      metalness: 0.6,
+      metalness: 0.7,
     });
     const towers = new THREE.InstancedMesh(towerGeo, towerMat, spots.length);
 
@@ -471,7 +396,7 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
     spots.forEach((s, idx) => {
       const w = 16 + Math.random() * 22;
       const d = 16 + Math.random() * 22;
-      const h = 40 + Math.random() * 145;
+      const h = 40 + Math.random() * 140;
 
       dummy.position.set(s.x, h / 2, s.z);
       dummy.scale.set(w, h, d);
@@ -487,11 +412,11 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
 
     envGroup.add(towers, beacons);
   } else if (trackId === 'jungle') {
-    const trunkGeo = new THREE.CylinderGeometry(0.75, 1.35, 1, 7);
+    const trunkGeo = new THREE.CylinderGeometry(0.75, 1.35, 1, 6);
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.92 });
     const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, spots.length);
 
-    const leafGeo = new THREE.DodecahedronGeometry(1, 1);
+    const leafGeo = new THREE.ConeGeometry(1, 1, 7);
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x059669, roughness: 0.78 });
     const canopies = new THREE.InstancedMesh(leafGeo, leafMat, spots.length * 2);
 
@@ -506,12 +431,12 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
       trunks.setMatrixAt(idx, dummy.matrix);
 
       dummy.position.set(s.x, h * 0.68, s.z);
-      dummy.scale.set(radius, radius * 0.65, radius);
+      dummy.scale.set(radius, h * 0.55, radius);
       dummy.updateMatrix();
       canopies.setMatrixAt(idx * 2, dummy.matrix);
 
       dummy.position.set(s.x + 1.5, h * 0.92, s.z - 1.2);
-      dummy.scale.set(radius * 0.75, radius * 0.55, radius * 0.75);
+      dummy.scale.set(radius * 0.75, h * 0.45, radius * 0.75);
       dummy.updateMatrix();
       canopies.setMatrixAt(idx * 2 + 1, dummy.matrix);
     });
@@ -521,11 +446,11 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
     const mesaCount = Math.floor(spots.length * 0.45);
     const cactusCount = spots.length - mesaCount;
 
-    const mesaGeo = new THREE.CylinderGeometry(0.62, 1.05, 1, 8);
+    const mesaGeo = new THREE.CylinderGeometry(0.62, 1.05, 1, 7);
     const mesaMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.92 });
     const mesas = new THREE.InstancedMesh(mesaGeo, mesaMat, mesaCount);
 
-    const cactusGeo = new THREE.CylinderGeometry(0.45, 0.55, 1, 8);
+    const cactusGeo = new THREE.CylinderGeometry(0.45, 0.55, 1, 7);
     const cactusMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 });
     const cacti = new THREE.InstancedMesh(cactusGeo, cactusMat, cactusCount);
 
@@ -564,8 +489,7 @@ export default function App() {
   const [previewCarId, setPreviewCarId] = useState('street');
   const [selectedTrackId, setSelectedTrackId] = useState('city');
   const [flipCarModel, setFlipCarModel] = useState(false);
-  const [modelStatus, setModelStatus] = useState('LOADING 3D MODEL...');
-  // 'menu' | 'countdown' | 'racing' | 'paused' | 'finished'
+  const [modelStatus, setModelStatus] = useState('LOADING...');
   const [gameState, setGameState] = useState('menu');
   const [countdownText, setCountdownText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -622,7 +546,6 @@ export default function App() {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
 
-  // Keyboard Escape / P shortcut for Pause & Resume
   useEffect(() => {
     const onPauseKey = (e) => {
       if (e.code === 'Escape' || e.code === 'KeyP') {
@@ -651,13 +574,16 @@ export default function App() {
       modelHolder.remove(modelHolder.children[0]);
     }
 
-    setModelStatus('LOADING 3D MODEL...');
+    // Show lightweight fallback immediately so screen is never empty while .glb streams
+    const tempMesh = buildSleekCarMesh(carSpec.fallbackColor);
+    modelHolder.add(tempMesh);
+    setModelStatus('LOADING .GLB...');
 
     const tryLoadPath = (pathIndex) => {
       if (objs.activeRequest !== requestToken) return;
 
       if (pathIndex >= carSpec.modelPaths.length) {
-        setModelStatus(`MISSING: ${carSpec.modelPaths[0]}`);
+        setModelStatus('DEFAULT MESH');
         return;
       }
 
@@ -711,7 +637,6 @@ export default function App() {
     swapCarModelInScene(car);
   }, [previewCarId]);
 
-  // Asphalt 8 Style Car DSP Audio Engine
   const audioRef = useRef(null);
   const initAudio = () => {
     if (audioRef.current) return;
@@ -960,7 +885,7 @@ export default function App() {
     const now = audio.ctx.currentTime;
 
     const osc = audio.ctx.createOscillator();
-    const gain = audio.createGain();
+    const gain = audio.ctx.createGain();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(pitch, now);
     osc.frequency.exponentialRampToValueAtTime(pitch * 0.45, now + 0.07);
@@ -1046,35 +971,33 @@ export default function App() {
     const minimapData = buildTrackMinimapData(trackConfig.points);
 
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(trackConfig.skyColor);
     scene.fog = new THREE.FogExp2(trackConfig.fogColor, trackConfig.fogDensity);
-    scene.add(createSkyDome(trackConfig.skyTop, trackConfig.skyBottom));
 
     const camera = new THREE.PerspectiveCamera(
       62,
       container.clientWidth / container.clientHeight,
       0.1,
-      4000
+      3000
     );
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
     container.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(trackConfig.ambientColor, 1.35));
     scene.add(new THREE.HemisphereLight(trackConfig.ambientColor, 0x1e293b, 1.15));
 
-    const dirLight = new THREE.DirectionalLight(trackConfig.sunColor, 2.2);
+    const dirLight = new THREE.DirectionalLight(trackConfig.sunColor, 2.0);
     dirLight.position.set(140, 240, 120);
     scene.add(dirLight);
 
-    const groundTex = createGroundTexture(trackConfig.groundBase, trackConfig.groundGrain);
+    // Lightweight Ground Plane
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(8000, 8000),
-      new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 })
+      new THREE.PlaneGeometry(5000, 5000),
+      new THREE.MeshStandardMaterial({ color: trackConfig.groundColor, roughness: 0.95 })
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.05;
@@ -1082,7 +1005,7 @@ export default function App() {
 
     const trackCurve = minimapData.curve;
     const roadWidth = 28;
-    const segments = 900;
+    const segments = 500;
 
     function buildTexturedRibbon(width, yOffset, texture, repeatU, repeatV) {
       const positions = [];
@@ -1121,8 +1044,7 @@ export default function App() {
         geo,
         new THREE.MeshStandardMaterial({
           map: texture,
-          roughness: 0.82,
-          metalness: 0.08,
+          roughness: 0.85,
           side: THREE.DoubleSide,
         })
       );
@@ -1131,15 +1053,15 @@ export default function App() {
     const curbTex = createCurbTexture(trackConfig.curbPrimary, trackConfig.curbSecondary);
     const asphaltTex = createAsphaltTexture();
 
-    scene.add(buildTexturedRibbon(roadWidth + 3.2, 0.01, curbTex, 1, 240));
-    scene.add(buildTexturedRibbon(roadWidth, 0.03, asphaltTex, 1, 180));
+    scene.add(buildTexturedRibbon(roadWidth + 3.2, 0.01, curbTex, 1, 200));
+    scene.add(buildTexturedRibbon(roadWidth, 0.03, asphaltTex, 1, 150));
 
     const envGroup = new THREE.Group();
     populateBiomeScenery(envGroup, trackConfig.id, trackCurve, roadWidth);
     scene.add(envGroup);
 
     const padRing = new THREE.Mesh(
-      new THREE.RingGeometry(3.2, 3.6, 48),
+      new THREE.RingGeometry(3.2, 3.6, 40),
       new THREE.MeshBasicMaterial({ color: trackConfig.curbPrimary, side: THREE.DoubleSide })
     );
     padRing.rotation.x = -Math.PI / 2;
@@ -1192,7 +1114,7 @@ export default function App() {
     const pickupGeo = new THREE.OctahedronGeometry(1.0);
     const pickupMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
 
-    const featureCount = 18;
+    const featureCount = 16;
     for (let i = 1; i < featureCount; i++) {
       const t = i / featureCount;
       const pt = trackCurve.getPointAt(t);
@@ -1215,11 +1137,10 @@ export default function App() {
       pickups.push(pickup);
     }
 
-    // Competitive, Fast AI Bots with Dynamic Lane-Changing & Lap Tracking
     const LANE_SLOTS = [-8.5, -3.0, 3.0, 8.5];
     const bots = [
       {
-        mesh: buildBotCarMesh('#10b981'),
+        mesh: buildSleekCarMesh('#10b981'),
         color: '#10b981',
         t: 0.008,
         lap: 1,
@@ -1230,7 +1151,7 @@ export default function App() {
         laneTimer: 110,
       },
       {
-        mesh: buildBotCarMesh('#f97316'),
+        mesh: buildSleekCarMesh('#f97316'),
         color: '#f97316',
         t: 0.013,
         lap: 1,
@@ -1241,7 +1162,7 @@ export default function App() {
         laneTimer: 160,
       },
       {
-        mesh: buildBotCarMesh('#3b82f6'),
+        mesh: buildSleekCarMesh('#3b82f6'),
         color: '#3b82f6',
         t: 0.018,
         lap: 1,
@@ -1279,7 +1200,7 @@ export default function App() {
     let idleRev = 0;
     let menuOrbitAngle = 0.6;
 
-    const samplePoints = trackCurve.getPoints(500);
+    const samplePoints = trackCurve.getPoints(360);
 
     let animationFrameId;
     const animate = () => {
@@ -1296,7 +1217,6 @@ export default function App() {
 
       const mode = gameStateRef.current;
 
-      // Silence engine audio cleanly when paused
       if (mode === 'paused') {
         if (audioRef.current) {
           const t = audioRef.current.ctx.currentTime;
@@ -1462,11 +1382,10 @@ export default function App() {
       const playerTrackT = closestIdx / samplePoints.length;
       const playerTotalProgress = (currentLap - 1) + playerTrackT;
 
-      if (closestIdx > 220 && closestIdx < 280) {
+      if (closestIdx > 160 && closestIdx < 200) {
         passedCheckpoint = true;
       }
 
-      // Dynamic AI Bots: Faster Pace, Rubber-Banding & Smooth Lane Changing
       const botDots = [];
       let aheadCount = 0;
 
@@ -1475,7 +1394,6 @@ export default function App() {
           const botTotalProgress = (bot.lap - 1) + bot.t;
           const gapToPlayer = playerTotalProgress - botTotalProgress;
 
-          // Rubber-banding so bots stay competitive and speed up when behind
           let targetSpeedT = bot.baseSpeedT;
           if (gapToPlayer > 0.03) {
             targetSpeedT = bot.baseSpeedT * 1.26;
@@ -1491,7 +1409,6 @@ export default function App() {
             if (prevT > 0.8) bot.lap += 1;
           }
 
-          // Periodic lane switching + evasive swerve when player approaches closely
           bot.laneTimer -= 1;
           const distToPlayer = playerCar.position.distanceTo(bot.mesh.position);
           if (distToPlayer < 24 && Math.abs(gapToPlayer) < 0.025 && bot.laneTimer < 90) {
@@ -1512,7 +1429,6 @@ export default function App() {
           const norm = new THREE.Vector3(-tan.z, 0, tan.x);
 
           bot.mesh.position.copy(pt).addScaledVector(norm, bot.offset);
-          // Tilt heading slightly during lane changes for natural steering look
           const lookPoint = bot.mesh.position
             .clone()
             .sub(tan)
@@ -1551,7 +1467,7 @@ export default function App() {
 
       const currentPosition = aheadCount + 1;
 
-      if (passedCheckpoint && (closestIdx < 20 || closestIdx > 480)) {
+      if (passedCheckpoint && (closestIdx < 16 || closestIdx > 344)) {
         passedCheckpoint = false;
         if (currentLap < TOTAL_LAPS) {
           currentLap += 1;
@@ -1716,13 +1632,7 @@ export default function App() {
               <span className="text-sm font-black tracking-wide text-white">
                 {previewCar.name}
               </span>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                  modelStatus.startsWith('MISSING')
-                    ? 'bg-red-500/20 text-red-300'
-                    : 'bg-slate-800 text-cyan-300'
-                }`}
-              >
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300">
                 {modelStatus}
               </span>
             </div>
@@ -1889,7 +1799,6 @@ export default function App() {
       {gameState !== 'menu' && (
         <>
           <div className="absolute top-4 left-4 right-4 flex items-start justify-between pointer-events-none">
-            {/* Top-Left: Position (1st/2nd/3rd/4th), Lap, Score, Coins */}
             <div className="flex items-center gap-4 bg-slate-900/85 border border-cyan-500/40 backdrop-blur-md px-5 py-2.5 rounded-xl">
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Pos</div>
@@ -1931,7 +1840,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Top-Right: Pause/Exit Controls + Dynamic SVG Minimap */}
             <div className="flex items-start gap-2.5">
               <div className="flex flex-col gap-2 pointer-events-auto">
                 <button
