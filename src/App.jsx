@@ -495,6 +495,7 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [raceReward, setRaceReward] = useState(0);
   const [raceSessionId, setRaceSessionId] = useState(0);
+  const [eventBanner, setEventBanner] = useState(null);
 
   const activeTrack = TRACKS.find((t) => t.id === selectedTrackId) || TRACKS[0];
   const initialMap = buildTrackMinimapData(activeTrack.points);
@@ -508,7 +509,6 @@ export default function App() {
     score: 0,
     lap: 1,
     position: 1,
-    airborne: false,
     minimapPath: initialMap.svgPath,
     playerDot: initialMap.project(0, 0),
     botDots: [],
@@ -560,6 +560,13 @@ export default function App() {
     return () => window.removeEventListener('keydown', onPauseKey);
   }, []);
 
+  const bannerTimerRef = useRef(null);
+  const triggerBanner = (title, bonus, color = 'amber') => {
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    setEventBanner({ title, bonus, color });
+    bannerTimerRef.current = setTimeout(() => setEventBanner(null), 1600);
+  };
+
   const sceneObjectsRef = useRef(null);
 
   const swapCarModelInScene = (carSpec) => {
@@ -574,7 +581,6 @@ export default function App() {
       modelHolder.remove(modelHolder.children[0]);
     }
 
-    // Show lightweight fallback immediately so screen is never empty while .glb streams
     const tempMesh = buildSleekCarMesh(carSpec.fallbackColor);
     modelHolder.add(tempMesh);
     setModelStatus('LOADING .GLB...');
@@ -637,7 +643,9 @@ export default function App() {
     swapCarModelInScene(car);
   }, [previewCarId]);
 
+  // 100% Pure Web Audio API Procedural Car Synthesizer (Zero External Files Needed)
   const audioRef = useRef(null);
+
   const initAudio = () => {
     if (audioRef.current) return;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -691,7 +699,6 @@ export default function App() {
 
     turboWhineOsc.connect(turboWhineGain);
     turboWhineGain.connect(ctx.destination);
-
     masterEngineGain.connect(ctx.destination);
 
     subOsc.start();
@@ -745,12 +752,34 @@ export default function App() {
       turboWhineOsc,
       turboWhineGain,
       engineFilter,
-      raspPeak,
       masterEngineGain,
       nitroFilter,
       nitroGain,
       screechGain,
     };
+  };
+
+  // Engine Ignition Crank Sound (Plays once at race start)
+  const playEngineIgnition = () => {
+    if (!soundEnabledRef.current || !audioRef.current) return;
+    const { ctx } = audioRef.current;
+    const now = ctx.currentTime;
+
+    const crankOsc = ctx.createOscillator();
+    const crankGain = ctx.createGain();
+    crankOsc.type = 'sawtooth';
+    crankOsc.frequency.setValueAtTime(55, now);
+    crankOsc.frequency.linearRampToValueAtTime(85, now + 0.12);
+    crankOsc.frequency.linearRampToValueAtTime(60, now + 0.24);
+    crankOsc.frequency.exponentialRampToValueAtTime(190, now + 0.42);
+
+    crankGain.gain.setValueAtTime(0.14, now);
+    crankGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+    crankOsc.connect(crankGain);
+    crankGain.connect(ctx.destination);
+    crankOsc.start(now);
+    crankOsc.stop(now + 0.45);
   };
 
   const playExhaustPopAndTurbo = () => {
@@ -834,7 +863,7 @@ export default function App() {
     slamOsc.type = 'sawtooth';
     slamOsc.frequency.setValueAtTime(110, now);
     slamOsc.frequency.exponentialRampToValueAtTime(26, now + 0.26);
-    slamGain.gain.setValueAtTime(0.26, now);
+    slamGain.gain.setValueAtTime(0.28, now);
     slamGain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
     slamOsc.connect(slamGain);
     slamGain.connect(ctx.destination);
@@ -848,14 +877,14 @@ export default function App() {
     crashFilter.frequency.setValueAtTime(1400, now);
 
     const crashGain = ctx.createGain();
-    crashGain.gain.setValueAtTime(0.24, now);
-    crashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+    crashGain.gain.setValueAtTime(0.26, now);
+    crashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
 
     crashSrc.connect(crashFilter);
     crashFilter.connect(crashGain);
     crashGain.connect(ctx.destination);
     crashSrc.start(now);
-    crashSrc.stop(now + 0.32);
+    crashSrc.stop(now + 0.34);
   };
 
   const playPickupChime = () => {
@@ -926,12 +955,13 @@ export default function App() {
 
   const startRace = () => {
     clearCountdownTimers();
+    setEventBanner(null);
     setRaceSessionId((s) => s + 1);
     setPreviewCarId(equippedCarId);
     initAudio();
     if (audioRef.current?.ctx.state === 'suspended') audioRef.current.ctx.resume();
 
-    playExhaustPopAndTurbo();
+    playEngineIgnition();
 
     setGameState('countdown');
     setCountdownText('3');
@@ -957,6 +987,7 @@ export default function App() {
 
   const exitToGarage = () => {
     clearCountdownTimers();
+    setEventBanner(null);
     setCountdownText('');
     setGameState('menu');
     setRaceSessionId((s) => s + 1);
@@ -994,7 +1025,6 @@ export default function App() {
     dirLight.position.set(140, 240, 120);
     scene.add(dirLight);
 
-    // Lightweight Ground Plane
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(5000, 5000),
       new THREE.MeshStandardMaterial({ color: trackConfig.groundColor, roughness: 0.95 })
@@ -1103,6 +1133,42 @@ export default function App() {
     rightFlame.position.x = 0.55;
     playerCar.add(leftFlame, rightFlame);
 
+    const debrisPool = [];
+    const shardGeo = new THREE.BoxGeometry(0.35, 0.14, 0.45);
+    const shardColors = [0xf59e0b, 0xef4444, 0x38bdf8, 0xe2e8f0];
+    for (let i = 0; i < 36; i++) {
+      const shard = new THREE.Mesh(
+        shardGeo,
+        new THREE.MeshBasicMaterial({ color: shardColors[i % shardColors.length] })
+      );
+      shard.visible = false;
+      scene.add(shard);
+      debrisPool.push({
+        mesh: shard,
+        vel: new THREE.Vector3(),
+        rotVel: new THREE.Vector3(),
+        life: 0,
+      });
+    }
+
+    const spawnDebrisExplosion = (origin) => {
+      debrisPool.forEach((d) => {
+        d.mesh.visible = true;
+        d.mesh.position.copy(origin).add(new THREE.Vector3(0, 0.8, 0));
+        d.vel.set(
+          (Math.random() - 0.5) * 0.95,
+          0.25 + Math.random() * 0.55,
+          (Math.random() - 0.5) * 0.95
+        );
+        d.rotVel.set(
+          (Math.random() - 0.5) * 0.35,
+          (Math.random() - 0.5) * 0.35,
+          (Math.random() - 0.5) * 0.35
+        );
+        d.life = 55;
+      });
+    };
+
     const gltfLoader = new GLTFLoader();
     sceneObjectsRef.current = { modelHolder, gltfLoader, activeRequest: null };
     swapCarModelInScene(previewCarRef.current);
@@ -1149,6 +1215,7 @@ export default function App() {
         offset: -7.5,
         targetOffset: -7.5,
         laneTimer: 110,
+        wreckSpinTimer: 0,
       },
       {
         mesh: buildSleekCarMesh('#f97316'),
@@ -1160,6 +1227,7 @@ export default function App() {
         offset: 7.5,
         targetOffset: 7.5,
         laneTimer: 160,
+        wreckSpinTimer: 0,
       },
       {
         mesh: buildSleekCarMesh('#3b82f6'),
@@ -1171,6 +1239,7 @@ export default function App() {
         offset: -3.0,
         targetOffset: -3.0,
         laneTimer: 80,
+        wreckSpinTimer: 0,
       },
     ];
     bots.forEach((b) => {
@@ -1189,8 +1258,17 @@ export default function App() {
     let velocityY = 0;
     let nitro = 100;
     let score = 0;
-    let barrelRollAngle = 0;
-    let isRolling = false;
+
+    let activeStunt = null;
+    let stuntAngle = 0;
+    let stuntTargetAngle = Math.PI * 2;
+
+    let wreckTimer = 0;
+    let wreckVelY = 0;
+    let wreckDriftDir = 1;
+    let respawnInvulnTimer = 0;
+    let cameraShake = 0;
+
     let currentLap = 1;
     let passedCheckpoint = false;
     let lastFlip = flipRef.current;
@@ -1201,6 +1279,31 @@ export default function App() {
     let menuOrbitAngle = 0.6;
 
     const samplePoints = trackCurve.getPoints(360);
+
+    const triggerPlayerWreck = (closestIdx) => {
+      if (wreckTimer > 0 || respawnInvulnTimer > 0) return;
+      wreckTimer = 75;
+      wreckVelY = 0.42;
+      wreckDriftDir = Math.random() < 0.5 ? -1 : 1;
+      cameraShake = 1.1;
+      activeStunt = null;
+      modelHolder.rotation.set(0, 0, 0);
+      spawnDebrisExplosion(playerCar.position);
+      playTakedownCrunch();
+      triggerBanner('WRECKED!', 'RESPAWNING...', 'red');
+
+      setTimeout(() => {
+        const safePt = samplePoints[closestIdx] || samplePoints[0];
+        const nextPt = samplePoints[(closestIdx + 3) % samplePoints.length];
+        playerCar.position.set(safePt.x, 0, safePt.z);
+        heading = Math.atan2(nextPt.x - safePt.x, nextPt.z - safePt.z);
+        speed = 0.65;
+        velocityY = 0;
+        modelHolder.rotation.set(0, 0, 0);
+        modelHolder.position.set(0, 0, 0);
+        respawnInvulnTimer = 90;
+      }, 1150);
+    };
 
     let animationFrameId;
     const animate = () => {
@@ -1217,7 +1320,25 @@ export default function App() {
 
       const mode = gameStateRef.current;
 
-      if (mode === 'paused') {
+      debrisPool.forEach((d) => {
+        if (d.life > 0) {
+          d.life -= 1;
+          d.mesh.position.add(d.vel);
+          d.vel.y -= 0.022;
+          if (d.mesh.position.y < 0.08) {
+            d.mesh.position.y = 0.08;
+            d.vel.y *= -0.45;
+            d.vel.x *= 0.8;
+            d.vel.z *= 0.8;
+          }
+          d.mesh.rotation.x += d.rotVel.x;
+          d.mesh.rotation.y += d.rotVel.y;
+          d.mesh.rotation.z += d.rotVel.z;
+          if (d.life <= 0) d.mesh.visible = false;
+        }
+      });
+
+      const stopContinuousAudio = () => {
         if (audioRef.current) {
           const t = audioRef.current.ctx.currentTime;
           audioRef.current.masterEngineGain.gain.setTargetAtTime(0, t, 0.04);
@@ -1225,6 +1346,10 @@ export default function App() {
           audioRef.current.nitroGain.gain.setTargetAtTime(0, t, 0.04);
           audioRef.current.screechGain.gain.setTargetAtTime(0, t, 0.04);
         }
+      };
+
+      if (mode === 'paused') {
+        stopContinuousAudio();
         renderer.render(scene, camera);
         return;
       }
@@ -1238,14 +1363,7 @@ export default function App() {
           playerCar.position.z + Math.cos(menuOrbitAngle) * radius
         );
         camera.lookAt(playerCar.position.x, playerCar.position.y + 0.15, playerCar.position.z);
-
-        if (audioRef.current) {
-          const t = audioRef.current.ctx.currentTime;
-          audioRef.current.masterEngineGain.gain.setTargetAtTime(0, t, 0.05);
-          audioRef.current.turboWhineGain.gain.setTargetAtTime(0, t, 0.05);
-          audioRef.current.nitroGain.gain.setTargetAtTime(0, t, 0.05);
-          audioRef.current.screechGain.gain.setTargetAtTime(0, t, 0.05);
-        }
+        stopContinuousAudio();
         renderer.render(scene, camera);
         return;
       }
@@ -1253,8 +1371,17 @@ export default function App() {
       padRing.visible = false;
       bots.forEach((b) => (b.mesh.visible = true));
 
+      if (respawnInvulnTimer > 0) {
+        respawnInvulnTimer -= 1;
+        modelHolder.visible = Math.floor(respawnInvulnTimer / 5) % 2 === 0;
+      } else {
+        modelHolder.visible = true;
+      }
+
       const spec = previewCarRef.current;
-      const canDrive = mode === 'racing';
+      const isWrecked = wreckTimer > 0;
+      const canDrive = mode === 'racing' && !isWrecked;
+
       const wantsThrottle = keys['KeyW'] || keys['ArrowUp'];
       const forward = canDrive && wantsThrottle;
       const brake = canDrive && (keys['KeyS'] || keys['ArrowDown']);
@@ -1267,7 +1394,7 @@ export default function App() {
       }
       wasBoosting = wantsBoost;
 
-      if (!wantsThrottle && wasForward && speed > 1.3) {
+      if (!wantsThrottle && wasForward && speed > 1.3 && !isWrecked) {
         playExhaustPopAndTurbo();
       }
       wasForward = wantsThrottle;
@@ -1278,13 +1405,26 @@ export default function App() {
         idleRev = 0;
       }
 
-      const maxSpeed = wantsBoost ? spec.nitroPower : spec.topSpeed;
-      if (forward) {
-        speed = THREE.MathUtils.lerp(speed, maxSpeed, wantsBoost ? spec.accel * 1.8 : spec.accel);
-      } else if (brake) {
-        speed = THREE.MathUtils.lerp(speed, -0.8, 0.05);
+      if (isWrecked) {
+        wreckTimer -= 1;
+        speed = THREE.MathUtils.lerp(speed, 0, 0.045);
+        modelHolder.position.y += wreckVelY;
+        wreckVelY -= 0.022;
+        if (modelHolder.position.y < 0) {
+          modelHolder.position.y = 0;
+          wreckVelY = Math.abs(wreckVelY) * 0.35;
+        }
+        modelHolder.rotation.z += 0.16 * wreckDriftDir;
+        modelHolder.rotation.x += 0.09;
       } else {
-        speed = THREE.MathUtils.lerp(speed, 0, 0.025);
+        const maxSpeed = wantsBoost ? spec.nitroPower : spec.topSpeed;
+        if (forward) {
+          speed = THREE.MathUtils.lerp(speed, maxSpeed, wantsBoost ? spec.accel * 1.8 : spec.accel);
+        } else if (brake) {
+          speed = THREE.MathUtils.lerp(speed, -0.8, 0.05);
+        } else {
+          speed = THREE.MathUtils.lerp(speed, 0, 0.025);
+        }
       }
 
       if (wantsBoost) {
@@ -1309,38 +1449,32 @@ export default function App() {
 
       const isTurningHard = (left || right) && speed > 1.35 && playerCar.position.y <= 0.05;
 
-      if (audioRef.current) {
+      // Pure Procedural Web Audio Engine Loop (Zero External Files)
+      if (soundEnabledRef.current && (mode === 'racing' || mode === 'countdown') && !isWrecked && audioRef.current) {
         const audio = audioRef.current;
         const now = audio.ctx.currentTime;
-        if (soundEnabledRef.current && (mode === 'racing' || mode === 'countdown')) {
-          const pitchMult = spec.enginePitch || 1.25;
-          const rpmNorm = rpm / 9500;
-          const baseHz = (46 + rpmNorm * 145 + (wantsBoost ? 30 : 0)) * pitchMult;
+        const pitchMult = spec.enginePitch || 1.25;
+        const rpmNorm = rpm / 9500;
+        const baseHz = (46 + rpmNorm * 145 + (wantsBoost ? 30 : 0)) * pitchMult;
 
-          audio.subOsc.frequency.setTargetAtTime(baseHz * 0.5, now, 0.03);
-          audio.mainOsc.frequency.setTargetAtTime(baseHz, now, 0.03);
-          audio.screamOsc.frequency.setTargetAtTime(baseHz * 2.02, now, 0.03);
+        audio.subOsc.frequency.setTargetAtTime(baseHz * 0.5, now, 0.03);
+        audio.mainOsc.frequency.setTargetAtTime(baseHz, now, 0.03);
+        audio.screamOsc.frequency.setTargetAtTime(baseHz * 2.02, now, 0.03);
 
-          audio.turboWhineOsc.frequency.setTargetAtTime(950 + rpmNorm * 2200 + (wantsBoost ? 450 : 0), now, 0.04);
-          audio.turboWhineGain.gain.setTargetAtTime(wantsThrottle || wantsBoost ? 0.024 : 0.004, now, 0.05);
+        audio.turboWhineOsc.frequency.setTargetAtTime(950 + rpmNorm * 2200 + (wantsBoost ? 450 : 0), now, 0.04);
+        audio.turboWhineGain.gain.setTargetAtTime(wantsThrottle || wantsBoost ? 0.024 : 0, now, 0.05);
 
-          const filterCutoff = wantsBoost
-            ? 1950
-            : 380 + rpmNorm * 1250 + (wantsThrottle ? 320 : 0);
-          audio.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.045);
+        const filterCutoff = wantsBoost ? 1950 : 380 + rpmNorm * 1250 + (wantsThrottle ? 320 : 0);
+        audio.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.045);
 
-          const engineVol = wantsThrottle || wantsBoost ? 0.095 : 0.05;
-          audio.masterEngineGain.gain.setTargetAtTime(engineVol, now, 0.045);
+        const engineVol = wantsThrottle || wantsBoost ? 0.095 : 0.05;
+        audio.masterEngineGain.gain.setTargetAtTime(engineVol, now, 0.045);
 
-          audio.nitroFilter.frequency.setTargetAtTime(750 + rpmNorm * 650, now, 0.05);
-          audio.nitroGain.gain.setTargetAtTime(wantsBoost ? 0.13 : 0, now, 0.045);
-          audio.screechGain.gain.setTargetAtTime(isTurningHard ? 0.036 : 0, now, 0.035);
-        } else {
-          audio.masterEngineGain.gain.setTargetAtTime(0, now, 0.05);
-          audio.turboWhineGain.gain.setTargetAtTime(0, now, 0.05);
-          audio.nitroGain.gain.setTargetAtTime(0, now, 0.05);
-          audio.screechGain.gain.setTargetAtTime(0, now, 0.05);
-        }
+        audio.nitroFilter.frequency.setTargetAtTime(750 + rpmNorm * 650, now, 0.05);
+        audio.nitroGain.gain.setTargetAtTime(wantsBoost ? 0.13 : 0, now, 0.045);
+        audio.screechGain.gain.setTargetAtTime(isTurningHard ? 0.036 : 0, now, 0.035);
+      } else {
+        stopContinuousAudio();
       }
 
       leftFlame.visible = wantsBoost;
@@ -1351,7 +1485,7 @@ export default function App() {
         rightFlame.scale.set(1, 1, pulse);
       }
 
-      if (Math.abs(speed) > 0.05) {
+      if (Math.abs(speed) > 0.05 && !isWrecked) {
         const turnDir = (left ? 1 : 0) - (right ? 1 : 0);
         heading += turnDir * spec.handling * (speed > 0 ? 1 : -1);
       }
@@ -1376,7 +1510,13 @@ export default function App() {
         const closestPt = samplePoints[closestIdx];
         const pullDir = new THREE.Vector3().subVectors(closestPt, playerCar.position).setY(0).normalize();
         playerCar.position.addScaledVector(pullDir, distFromCenter - (roadWidth / 2 - 1.2));
-        speed *= 0.96;
+
+        if (kmh > 265 && !isWrecked && respawnInvulnTimer <= 0) {
+          triggerPlayerWreck(closestIdx);
+        } else {
+          speed *= 0.94;
+          cameraShake = Math.max(cameraShake, 0.25);
+        }
       }
 
       const playerTrackT = closestIdx / samplePoints.length;
@@ -1390,7 +1530,7 @@ export default function App() {
       let aheadCount = 0;
 
       bots.forEach((bot) => {
-        if (canDrive) {
+        if (mode === 'racing') {
           const botTotalProgress = (bot.lap - 1) + bot.t;
           const gapToPlayer = playerTotalProgress - botTotalProgress;
 
@@ -1435,16 +1575,33 @@ export default function App() {
             .addScaledVector(norm, -lateralDelta * 1.8);
           bot.mesh.lookAt(lookPoint);
 
-          if (distToPlayer < 3.4) {
+          if (bot.wreckSpinTimer > 0) {
+            bot.wreckSpinTimer -= 1;
+            bot.mesh.position.y = Math.sin((bot.wreckSpinTimer / 45) * Math.PI) * 2.4;
+            bot.mesh.rotation.y += 0.28;
+            bot.mesh.rotation.z += 0.18;
+          } else {
+            bot.mesh.position.y = 0;
+            bot.mesh.rotation.z = 0;
+          }
+
+          if (distToPlayer < 3.4 && !isWrecked && respawnInvulnTimer <= 0 && bot.wreckSpinTimer <= 0) {
             if (wantsBoost) {
-              bot.t = Math.max(0, bot.t - 0.02);
-              bot.currentSpeedT = bot.baseSpeedT * 0.45;
-              nitro = Math.min(100, nitro + 30);
+              bot.t = Math.max(0, bot.t - 0.022);
+              bot.currentSpeedT = bot.baseSpeedT * 0.35;
+              bot.wreckSpinTimer = 45;
+              nitro = Math.min(100, nitro + 35);
               score += 500;
+              cameraShake = 0.65;
               setCoins((c) => c + 50);
+              spawnDebrisExplosion(bot.mesh.position);
               playTakedownCrunch();
+              triggerBanner('TAKEDOWN!', '+500 PTS • +50 COINS', 'cyan');
+            } else if (kmh > 255) {
+              triggerPlayerWreck(closestIdx);
             } else {
-              speed *= 0.68;
+              speed *= 0.65;
+              cameraShake = 0.45;
               playTakedownCrunch();
             }
           }
@@ -1473,6 +1630,7 @@ export default function App() {
           currentLap += 1;
           score += 1500;
           playPerfectNitroSurge();
+          triggerBanner('FINAL LAP!', '+1,500 PTS', 'cyan');
         } else if (gameStateRef.current === 'racing') {
           const positionBonus = currentPosition === 1 ? 600 : currentPosition === 2 ? 350 : currentPosition === 3 ? 200 : 100;
           const earned = positionBonus + Math.floor(score / 12);
@@ -1484,32 +1642,66 @@ export default function App() {
       }
 
       ramps.forEach((ramp) => {
-        if (playerCar.position.distanceTo(ramp.position) < 5.0 && playerCar.position.y < 0.65 && speed > 1.2) {
-          velocityY = 0.46;
-          isRolling = true;
-          barrelRollAngle = 0;
-          nitro = Math.min(100, nitro + 25);
-          score += 250;
+        if (
+          !isWrecked &&
+          playerCar.position.distanceTo(ramp.position) < 5.2 &&
+          playerCar.position.y < 0.65 &&
+          speed > 1.2
+        ) {
+          stuntAngle = 0;
+          if (left || right) {
+            activeStunt = 'flatspin';
+            velocityY = 0.48;
+            stuntTargetAngle = Math.PI * 2;
+            nitro = Math.min(100, nitro + 35);
+            score += 350;
+            setCoins((c) => c + 35);
+            triggerBanner('360° FLAT SPIN!', '+350 PTS • +35 COINS', 'fuchsia');
+          } else if (wantsBoost) {
+            activeStunt = 'mega';
+            velocityY = 0.56;
+            stuntTargetAngle = Math.PI * 4;
+            nitro = Math.min(100, nitro + 40);
+            score += 450;
+            setCoins((c) => c + 45);
+            triggerBanner('DOUBLE BARREL ROLL!', '+450 PTS • +45 COINS', 'amber');
+          } else {
+            activeStunt = 'barrel';
+            velocityY = 0.44;
+            stuntTargetAngle = Math.PI * 2;
+            nitro = Math.min(100, nitro + 25);
+            score += 250;
+            setCoins((c) => c + 25);
+            triggerBanner('BARREL ROLL!', '+250 PTS • +25 COINS', 'amber');
+          }
           playExhaustPopAndTurbo();
         }
       });
 
-      if (playerCar.position.y > 0 || velocityY > 0) {
+      if (!isWrecked && (playerCar.position.y > 0 || velocityY > 0)) {
         playerCar.position.y += velocityY;
-        velocityY -= 0.018;
-        if (isRolling) {
-          barrelRollAngle += 0.18;
-          playerCar.rotation.z = barrelRollAngle;
-          if (barrelRollAngle >= Math.PI * 2) {
-            isRolling = false;
-            playerCar.rotation.z = 0;
+        velocityY -= 0.017;
+
+        if (activeStunt) {
+          const rotSpeed = activeStunt === 'mega' ? 0.24 : 0.17;
+          stuntAngle += rotSpeed;
+          if (activeStunt === 'flatspin') {
+            modelHolder.rotation.y = stuntAngle;
+          } else {
+            modelHolder.rotation.z = stuntAngle;
+          }
+          if (stuntAngle >= stuntTargetAngle) {
+            activeStunt = null;
+            modelHolder.rotation.set(0, 0, 0);
           }
         }
+
         if (playerCar.position.y <= 0) {
           playerCar.position.y = 0;
           velocityY = 0;
-          isRolling = false;
-          playerCar.rotation.z = 0;
+          activeStunt = null;
+          modelHolder.rotation.set(0, 0, 0);
+          cameraShake = Math.max(cameraShake, 0.3);
           playTakedownCrunch();
         }
       }
@@ -1533,6 +1725,12 @@ export default function App() {
       const camOffset = new THREE.Vector3(-Math.sin(heading) * 10, 4.4, -Math.cos(heading) * 10);
       camera.position.lerp(playerCar.position.clone().add(camOffset), 0.14);
 
+      if (cameraShake > 0.01) {
+        camera.position.x += (Math.random() - 0.5) * cameraShake;
+        camera.position.y += (Math.random() - 0.5) * cameraShake;
+        cameraShake *= 0.86;
+      }
+
       const lookTarget = playerCar.position.clone().add(
         new THREE.Vector3(Math.sin(heading) * 12, 1.3, Math.cos(heading) * 12)
       );
@@ -1549,7 +1747,6 @@ export default function App() {
         score,
         lap: currentLap,
         position: currentPosition,
-        airborne: playerCar.position.y > 0.2,
         minimapPath: minimapData.svgPath,
         playerDot: minimapData.project(playerCar.position.x, playerCar.position.z),
         botDots,
@@ -1572,6 +1769,7 @@ export default function App() {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('resize', handleResize);
       sceneObjectsRef.current = null;
+      stopContinuousAudio();
       if (audioRef.current) {
         audioRef.current.ctx.close();
         audioRef.current = null;
@@ -1592,7 +1790,7 @@ export default function App() {
           <div className="flex flex-wrap justify-between items-start gap-4 pointer-events-auto">
             <div>
               <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-1.5">
-                3 Long-Distance Circuits • Competitive AI Racers
+                Barrel Rolls • 360° Flat Spins • Built-In Procedural Audio
               </div>
               <h1 className="text-4xl md:text-5xl font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-fuchsia-500">
                 NITRO HORIZON 3D
@@ -1622,7 +1820,7 @@ export default function App() {
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 className="px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-slate-200 text-xs font-bold hover:border-cyan-400 transition cursor-pointer"
               >
-                {soundEnabled ? '🔊 ENGINE SFX' : '🔇 MUTED'}
+                {soundEnabled ? '🔊 SFX ON' : '🔇 MUTED'}
               </button>
             </div>
           </div>
@@ -1685,7 +1883,7 @@ export default function App() {
                 2. Select Supercar ({unlockedCars.length}/{CARS.length} Unlocked)
               </span>
               <span className="text-[11px] text-slate-400 hidden sm:block">
-                Collect gold crystals & takedowns on track to earn coins
+                Steer on ramps for 360° Flat Spins • Boost on ramps for Double Barrel Rolls
               </span>
             </div>
 
@@ -1897,9 +2095,22 @@ export default function App() {
             </div>
           </div>
 
-          {hud.airborne && gameState === 'racing' && (
-            <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-amber-500/95 text-slate-950 font-black px-5 py-1.5 rounded-full text-sm tracking-widest animate-bounce">
-              BARREL ROLL +250!
+          {eventBanner && gameState === 'racing' && (
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center pointer-events-none animate-bounce">
+              <div
+                className={`px-6 py-2 rounded-2xl font-black tracking-wider shadow-2xl border ${
+                  eventBanner.color === 'red'
+                    ? 'bg-red-600/95 border-red-300 text-white'
+                    : eventBanner.color === 'fuchsia'
+                    ? 'bg-fuchsia-600/95 border-fuchsia-300 text-white'
+                    : eventBanner.color === 'cyan'
+                    ? 'bg-cyan-500/95 border-cyan-200 text-slate-950'
+                    : 'bg-amber-500/95 border-amber-200 text-slate-950'
+                }`}
+              >
+                <div className="text-lg italic leading-tight">{eventBanner.title}</div>
+                <div className="text-[11px] font-mono opacity-90">{eventBanner.bonus}</div>
+              </div>
             </div>
           )}
 
