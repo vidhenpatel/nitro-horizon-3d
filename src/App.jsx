@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 class GameErrorBoundary extends React.Component {
   constructor(props) {
@@ -38,16 +39,17 @@ class GameErrorBoundary extends React.Component {
   }
 }
 
+// 7-Car Garage Inventory (4 Original + 3 New Downloaded .GLB Models)
 const CARS = [
   {
     id: 'street',
     name: 'Apex Street Coupe',
     modelPaths: ['/models/starter.glb', '/models/starter/scene.gltf'],
     price: 0,
-    topSpeed: 2.35,
-    accel: 0.036,
-    handling: 0.035,
-    nitroPower: 3.65,
+    topSpeed: 3.4,
+    accel: 0.055,
+    handling: 0.038,
+    nitroPower: 4.9,
     enginePitch: 1.15,
     fallbackColor: '#ef4444',
   },
@@ -56,10 +58,10 @@ const CARS = [
     name: 'V8 Phantom Muscle',
     modelPaths: ['/models/muscle.glb', '/models/muscle/scene.gltf'],
     price: 500,
-    topSpeed: 2.6,
-    accel: 0.042,
-    handling: 0.033,
-    nitroPower: 3.95,
+    topSpeed: 3.7,
+    accel: 0.06,
+    handling: 0.036,
+    nitroPower: 5.25,
     enginePitch: 0.92,
     fallbackColor: '#f97316',
   },
@@ -68,10 +70,10 @@ const CARS = [
     name: 'Lykan GT Supercar',
     modelPaths: ['/models/sportscar.glb', '/models/sportscar/scene.gltf'],
     price: 1200,
-    topSpeed: 2.9,
-    accel: 0.046,
-    handling: 0.039,
-    nitroPower: 4.35,
+    topSpeed: 4.0,
+    accel: 0.065,
+    handling: 0.04,
+    nitroPower: 5.6,
     enginePitch: 1.32,
     fallbackColor: '#06b6d4',
   },
@@ -80,12 +82,48 @@ const CARS = [
     name: 'Zenith F1 Hypercar',
     modelPaths: ['/models/hypercar.glb', '/models/hypercar/scene.gltf'],
     price: 2500,
-    topSpeed: 3.25,
-    accel: 0.052,
+    topSpeed: 4.3,
+    accel: 0.07,
     handling: 0.043,
-    nitroPower: 4.85,
+    nitroPower: 5.95,
     enginePitch: 1.48,
     fallbackColor: '#a855f7',
+  },
+  {
+    id: 'exotic5',
+    name: 'Aventador SVJ Roadster',
+    modelPaths: ['/models/car5.glb', '/models/rival1.glb', '/models/car5/scene.gltf'],
+    price: 3800,
+    topSpeed: 4.55,
+    accel: 0.074,
+    handling: 0.045,
+    nitroPower: 6.25,
+    enginePitch: 1.28,
+    fallbackColor: '#10b981',
+  },
+  {
+    id: 'exotic6',
+    name: 'Bugatti Chiron Pur Sport',
+    modelPaths: ['/models/car6.glb', '/models/rival2.glb', '/models/car6/scene.gltf'],
+    price: 5500,
+    topSpeed: 4.8,
+    accel: 0.078,
+    handling: 0.046,
+    nitroPower: 6.55,
+    enginePitch: 1.05,
+    fallbackColor: '#3b82f6',
+  },
+  {
+    id: 'exotic7',
+    name: 'Koenigsegg Jesko Absolut',
+    modelPaths: ['/models/car7.glb', '/models/rival3.glb', '/models/car7/scene.gltf'],
+    price: 7500,
+    topSpeed: 5.1,
+    accel: 0.084,
+    handling: 0.048,
+    nitroPower: 6.95,
+    enginePitch: 1.42,
+    fallbackColor: '#eab308',
   },
 ];
 
@@ -93,7 +131,7 @@ const TRACKS = [
   {
     id: 'city',
     name: 'Neon Metropolis',
-    subtitle: 'Midnight Highway • 4.8 KM Loop',
+    subtitle: 'Midnight Highway • 4.8 KM',
     skyColor: 0x050814,
     fogColor: 0x050814,
     fogDensity: 0.001,
@@ -123,7 +161,7 @@ const TRACKS = [
   {
     id: 'jungle',
     name: 'Emerald Amazon',
-    subtitle: 'Rainforest Canopy • 5.4 KM Loop',
+    subtitle: 'Rainforest Canopy • 5.4 KM',
     skyColor: 0x082f23,
     fogColor: 0x082f23,
     fogDensity: 0.0011,
@@ -153,7 +191,7 @@ const TRACKS = [
   {
     id: 'desert',
     name: 'Sahara Canyon',
-    subtitle: 'Red Rock Switchbacks • 5.8 KM Loop',
+    subtitle: 'Red Rock Switchbacks • 5.8 KM',
     skyColor: 0x431407,
     fogColor: 0x431407,
     fogDensity: 0.00095,
@@ -180,6 +218,63 @@ const TRACKS = [
       new THREE.Vector3(-40, 0, 220),
     ],
   },
+  {
+    id: 'arctic',
+    name: 'Arctic Glacier',
+    subtitle: 'Alpine Ice Peaks • 5.6 KM',
+    skyColor: 0x0c4a6e,
+    fogColor: 0xbae6fd,
+    fogDensity: 0.0009,
+    groundColor: 0xe0f2fe,
+    curbPrimary: '#0284c7',
+    curbSecondary: '#f8fafc',
+    accentHex: '#38bdf8',
+    ambientColor: 0xf0f9ff,
+    sunColor: 0xffffff,
+    points: [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(-90, 0, -540),
+      new THREE.Vector3(260, 0, -960),
+      new THREE.Vector3(780, 0, -1040),
+      new THREE.Vector3(1260, 0, -760),
+      new THREE.Vector3(1080, 0, -340),
+      new THREE.Vector3(1440, 0, 80),
+      new THREE.Vector3(1120, 0, 580),
+      new THREE.Vector3(620, 0, 760),
+      new THREE.Vector3(180, 0, 520),
+      new THREE.Vector3(-160, 0, 640),
+      new THREE.Vector3(-240, 0, 280),
+    ],
+  },
+  {
+    id: 'volcano',
+    name: 'Volcanic Caldera',
+    subtitle: 'Obsidian Lava Ridge • 6.1 KM',
+    skyColor: 0x1c0707,
+    fogColor: 0x2b0909,
+    fogDensity: 0.001,
+    groundColor: 0x18181b,
+    curbPrimary: '#f97316',
+    curbSecondary: '#18181b',
+    accentHex: '#fb923c',
+    ambientColor: 0xfed7aa,
+    sunColor: 0xf97316,
+    points: [
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(180, 0, -520),
+      new THREE.Vector3(-160, 0, -940),
+      new THREE.Vector3(220, 0, -1440),
+      new THREE.Vector3(840, 0, -1380),
+      new THREE.Vector3(1320, 0, -960),
+      new THREE.Vector3(1060, 0, -520),
+      new THREE.Vector3(1480, 0, -120),
+      new THREE.Vector3(1260, 0, 440),
+      new THREE.Vector3(740, 0, 720),
+      new THREE.Vector3(460, 0, 320),
+      new THREE.Vector3(140, 0, 580),
+      new THREE.Vector3(-120, 0, 320),
+    ],
+  },
 ];
 
 const TOTAL_LAPS = 2;
@@ -189,6 +284,14 @@ function formatOrdinal(pos) {
   if (pos === 2) return '2nd';
   if (pos === 3) return '3rd';
   return `${pos}th`;
+}
+
+function formatRaceTime(ms) {
+  const totalMs = Math.max(0, Math.floor(ms));
+  const minutes = Math.floor(totalMs / 60000);
+  const seconds = Math.floor((totalMs % 60000) / 1000);
+  const hundredths = Math.floor((totalMs % 1000) / 10);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
 }
 
 function createAsphaltTexture() {
@@ -351,6 +454,30 @@ function buildSleekCarMesh(colorHex) {
   return group;
 }
 
+function prepareNormalizedGLBModel(rawScene, flipModel) {
+  const wrapper = new THREE.Group();
+  const model = SkeletonUtils.clone(rawScene);
+
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const scaleFactor = 4.8 / (maxDim || 1);
+  model.scale.setScalar(scaleFactor);
+
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const center = new THREE.Vector3();
+  scaledBox.getCenter(center);
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y -= scaledBox.min.y;
+
+  wrapper.rotation.y = flipModel ? 0 : Math.PI;
+  wrapper.userData.isGLBWrapper = true;
+  wrapper.add(model);
+  return wrapper;
+}
+
 function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
   const clearPoints = trackCurve.getPoints(240);
   const isNearRoad = (x, z, minDist) => {
@@ -366,9 +493,17 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
   const poleGeo = new THREE.CylinderGeometry(0.18, 0.25, 11, 6);
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
   const lampGeo = new THREE.BoxGeometry(2.8, 0.25, 0.6);
-  const lampMat = new THREE.MeshBasicMaterial({
-    color: trackId === 'city' ? 0x38bdf8 : trackId === 'jungle' ? 0xfef08a : 0xfb923c,
-  });
+  const lampColor =
+    trackId === 'city'
+      ? 0x38bdf8
+      : trackId === 'jungle'
+      ? 0xfef08a
+      : trackId === 'arctic'
+      ? 0xe0f2fe
+      : trackId === 'volcano'
+      ? 0xf97316
+      : 0xfb923c;
+  const lampMat = new THREE.MeshBasicMaterial({ color: lampColor });
 
   const poleCount = 40;
   const poles = new THREE.InstancedMesh(poleGeo, poleMat, poleCount * 2);
@@ -478,6 +613,75 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
     });
 
     envGroup.add(trunks, canopies);
+  } else if (trackId === 'arctic') {
+    const glacierCount = Math.floor(spots.length * 0.5);
+    const pineCount = spots.length - glacierCount;
+
+    const glacierGeo = new THREE.ConeGeometry(1, 1, 5);
+    const glacierMat = new THREE.MeshStandardMaterial({
+      color: 0x7dd3fc,
+      roughness: 0.25,
+      metalness: 0.3,
+    });
+    const glaciers = new THREE.InstancedMesh(glacierGeo, glacierMat, glacierCount);
+
+    const snowPineGeo = new THREE.ConeGeometry(1, 1, 7);
+    const snowPineMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.85 });
+    const pines = new THREE.InstancedMesh(snowPineGeo, snowPineMat, pineCount);
+
+    spots.forEach((s, idx) => {
+      if (idx < glacierCount) {
+        const w = 18 + Math.random() * 34;
+        const h = 25 + Math.random() * 75;
+        dummy.position.set(s.x, h / 2, s.z);
+        dummy.scale.set(w, h, w);
+        dummy.rotation.set(0, Math.random() * Math.PI, 0);
+        dummy.updateMatrix();
+        glaciers.setMatrixAt(idx, dummy.matrix);
+      } else {
+        const h = 10 + Math.random() * 14;
+        const r = 3.5 + Math.random() * 3.5;
+        dummy.position.set(s.x, h / 2, s.z);
+        dummy.scale.set(r, h, r);
+        dummy.rotation.set(0, Math.random() * Math.PI, 0);
+        dummy.updateMatrix();
+        pines.setMatrixAt(idx - glacierCount, dummy.matrix);
+      }
+    });
+
+    envGroup.add(glaciers, pines);
+  } else if (trackId === 'volcano') {
+    const spireCount = Math.floor(spots.length * 0.65);
+    const lavaCount = spots.length - spireCount;
+
+    const spireGeo = new THREE.ConeGeometry(1, 1, 6);
+    const spireMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.85 });
+    const spires = new THREE.InstancedMesh(spireGeo, spireMat, spireCount);
+
+    const lavaGeo = new THREE.CylinderGeometry(1, 1.2, 0.3, 8);
+    const lavaMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+    const lavas = new THREE.InstancedMesh(lavaGeo, lavaMat, lavaCount);
+
+    spots.forEach((s, idx) => {
+      if (idx < spireCount) {
+        const w = 14 + Math.random() * 24;
+        const h = 25 + Math.random() * 80;
+        dummy.position.set(s.x, h / 2, s.z);
+        dummy.scale.set(w, h, w);
+        dummy.rotation.set(0, Math.random() * Math.PI, 0);
+        dummy.updateMatrix();
+        spires.setMatrixAt(idx, dummy.matrix);
+      } else {
+        const r = 8 + Math.random() * 16;
+        dummy.position.set(s.x, 0.1, s.z);
+        dummy.scale.set(r, 1, r);
+        dummy.rotation.set(0, Math.random() * Math.PI, 0);
+        dummy.updateMatrix();
+        lavas.setMatrixAt(idx - spireCount, dummy.matrix);
+      }
+    });
+
+    envGroup.add(spires, lavas);
   } else {
     const mesaCount = Math.floor(spots.length * 0.45);
     const cactusCount = spots.length - mesaCount;
@@ -513,6 +717,16 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
   }
 }
 
+// Pick 3 random distinct cars from the 7-car garage inventory (excluding the player's equipped car)
+function pickRandomThreeRivals(playerCarId) {
+  const pool = CARS.filter((c) => c.id !== playerCarId);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, 3);
+}
+
 function NitroHorizonGame() {
   const mountRef = useRef(null);
 
@@ -543,6 +757,7 @@ function NitroHorizonGame() {
   const [countdownText, setCountdownText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [raceReward, setRaceReward] = useState(0);
+  const [finalRaceTime, setFinalRaceTime] = useState('00:00.00');
   const [raceSessionId, setRaceSessionId] = useState(0);
   const [eventBanner, setEventBanner] = useState(null);
 
@@ -558,6 +773,7 @@ function NitroHorizonGame() {
     score: 0,
     lap: 1,
     position: 1,
+    raceTimeMs: 0,
     minimapPath: initialMap.svgPath,
     playerDot: initialMap.project(0, 0),
     botDots: [],
@@ -567,7 +783,7 @@ function NitroHorizonGame() {
     try {
       localStorage.setItem('nh_coins', String(coins));
     } catch {
-      // Ignore storage quota errors
+      // Ignore storage errors
     }
   }, [coins]);
 
@@ -575,7 +791,7 @@ function NitroHorizonGame() {
     try {
       localStorage.setItem('nh_cars', JSON.stringify(unlockedCars));
     } catch {
-      // Ignore storage quota errors
+      // Ignore storage errors
     }
   }, [unlockedCars]);
 
@@ -583,6 +799,7 @@ function NitroHorizonGame() {
   const equippedCar = CARS.find((c) => c.id === equippedCarId) || CARS[0];
 
   const previewCarRef = useRef(previewCar);
+  const equippedCarIdRef = useRef(equippedCarId);
   const flipRef = useRef(flipCarModel);
   const gameStateRef = useRef(gameState);
   const soundEnabledRef = useRef(soundEnabled);
@@ -590,6 +807,10 @@ function NitroHorizonGame() {
   useEffect(() => {
     previewCarRef.current = previewCar;
   }, [previewCar]);
+
+  useEffect(() => {
+    equippedCarIdRef.current = equippedCarId;
+  }, [equippedCarId]);
 
   useEffect(() => {
     flipRef.current = flipCarModel;
@@ -630,16 +851,16 @@ function NitroHorizonGame() {
     const objs = sceneObjectsRef.current;
     if (!objs) return;
 
-    const { modelHolder, gltfLoader } = objs;
+    const { carMeshSlot, gltfLoader } = objs;
     const requestToken = Symbol(carSpec.id);
     objs.activeRequest = requestToken;
 
-    while (modelHolder.children.length > 0) {
-      modelHolder.remove(modelHolder.children[0]);
+    while (carMeshSlot.children.length > 0) {
+      carMeshSlot.remove(carMeshSlot.children[0]);
     }
 
     const tempMesh = buildSleekCarMesh(carSpec.fallbackColor);
-    modelHolder.add(tempMesh);
+    carMeshSlot.add(tempMesh);
     setModelStatus('LOADING .GLB...');
 
     const tryLoadPath = (pathIndex) => {
@@ -657,32 +878,12 @@ function NitroHorizonGame() {
         (gltf) => {
           if (objs.activeRequest !== requestToken) return;
 
-          while (modelHolder.children.length > 0) {
-            modelHolder.remove(modelHolder.children[0]);
+          while (carMeshSlot.children.length > 0) {
+            carMeshSlot.remove(carMeshSlot.children[0]);
           }
 
-          const wrapper = new THREE.Group();
-          const model = gltf.scene;
-
-          const box = new THREE.Box3().setFromObject(model);
-          const size = new THREE.Vector3();
-          box.getSize(size);
-          const maxDim = Math.max(size.x, size.y, size.z);
-          const scaleFactor = 4.8 / (maxDim || 1);
-          model.scale.setScalar(scaleFactor);
-
-          const scaledBox = new THREE.Box3().setFromObject(model);
-          const center = new THREE.Vector3();
-          scaledBox.getCenter(center);
-          model.position.x -= center.x;
-          model.position.z -= center.z;
-          model.position.y -= scaledBox.min.y;
-
-          wrapper.rotation.y = flipRef.current ? 0 : Math.PI;
-          wrapper.userData.isGLBWrapper = true;
-          wrapper.add(model);
-
-          modelHolder.add(wrapper);
+          const wrapper = prepareNormalizedGLBModel(gltf.scene, flipRef.current);
+          carMeshSlot.add(wrapper);
           setModelStatus('3D MODEL READY');
         },
         undefined,
@@ -1175,18 +1376,40 @@ function NitroHorizonGame() {
 
     const playerCar = new THREE.Group();
     const modelHolder = new THREE.Group();
+    const carMeshSlot = new THREE.Group();
+    modelHolder.add(carMeshSlot);
     playerCar.add(modelHolder);
     scene.add(playerCar);
 
-    const flameGeo = new THREE.ConeGeometry(0.3, 1.8, 8);
-    flameGeo.rotateX(Math.PI / 2);
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-    const leftFlame = new THREE.Mesh(flameGeo, flameMat);
-    leftFlame.position.set(-0.55, 0.5, 2.9);
+    const buildNitroFlameAssembly = () => {
+      const flameGroup = new THREE.Group();
+      const outerGeo = new THREE.ConeGeometry(0.24, 1.55, 10);
+      outerGeo.rotateX(Math.PI / 2);
+      outerGeo.translate(0, 0, 0.78);
+      const outerMat = new THREE.MeshBasicMaterial({
+        color: 0x06b6d4,
+        transparent: true,
+        opacity: 0.85,
+      });
+
+      const innerGeo = new THREE.ConeGeometry(0.11, 0.95, 8);
+      innerGeo.rotateX(Math.PI / 2);
+      innerGeo.translate(0, 0, 0.48);
+      const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+      flameGroup.add(new THREE.Mesh(outerGeo, outerMat), new THREE.Mesh(innerGeo, innerMat));
+      return flameGroup;
+    };
+
+    const leftFlame = buildNitroFlameAssembly();
+    leftFlame.position.set(-0.52, 0.46, 2.15);
     leftFlame.visible = false;
-    const rightFlame = leftFlame.clone();
-    rightFlame.position.x = 0.55;
-    playerCar.add(leftFlame, rightFlame);
+
+    const rightFlame = buildNitroFlameAssembly();
+    rightFlame.position.set(0.52, 0.46, 2.15);
+    rightFlame.visible = false;
+
+    modelHolder.add(leftFlame, rightFlame);
 
     const debrisPool = [];
     const shardGeo = new THREE.BoxGeometry(0.35, 0.14, 0.45);
@@ -1225,7 +1448,7 @@ function NitroHorizonGame() {
     };
 
     const gltfLoader = new GLTFLoader();
-    sceneObjectsRef.current = { modelHolder, gltfLoader, activeRequest: null };
+    sceneObjectsRef.current = { carMeshSlot, gltfLoader, activeRequest: null };
     swapCarModelInScene(previewCarRef.current);
 
     const ramps = [];
@@ -1258,48 +1481,47 @@ function NitroHorizonGame() {
       pickups.push(pickup);
     }
 
+    // Pick 3 random distinct cars from the 7-car garage inventory as AI rivals
+    const chosenRivals = pickRandomThreeRivals(equippedCarIdRef.current);
     const LANE_SLOTS = [-8.5, -3.0, 3.0, 8.5];
-    const bots = [
-      {
-        mesh: buildSleekCarMesh('#10b981'),
-        color: '#10b981',
-        t: 0.008,
-        lap: 1,
-        baseSpeedT: 0.00043,
-        currentSpeedT: 0.00043,
-        offset: -7.5,
-        targetOffset: -7.5,
-        laneTimer: 110,
-        wreckSpinTimer: 0,
-      },
-      {
-        mesh: buildSleekCarMesh('#f97316'),
-        color: '#f97316',
-        t: 0.013,
-        lap: 1,
-        baseSpeedT: 0.00046,
-        currentSpeedT: 0.00046,
-        offset: 7.5,
-        targetOffset: 7.5,
-        laneTimer: 160,
-        wreckSpinTimer: 0,
-      },
-      {
-        mesh: buildSleekCarMesh('#3b82f6'),
-        color: '#3b82f6',
-        t: 0.018,
-        lap: 1,
-        baseSpeedT: 0.0004,
-        currentSpeedT: 0.0004,
-        offset: -3.0,
-        targetOffset: -3.0,
-        laneTimer: 80,
-        wreckSpinTimer: 0,
-      },
-    ];
+    const bots = chosenRivals.map((rivalCar, idx) => ({
+      carSpec: rivalCar,
+      mesh: new THREE.Group(),
+      color: rivalCar.fallbackColor,
+      t: 0.008 + idx * 0.005,
+      lap: 1,
+      baseSpeedT: 0.00064 + idx * 0.000045,
+      currentSpeedT: 0.00064 + idx * 0.000045,
+      offset: idx === 0 ? -7.5 : idx === 1 ? 7.5 : -3.0,
+      targetOffset: idx === 0 ? -7.5 : idx === 1 ? 7.5 : -3.0,
+      laneTimer: 100 + idx * 45,
+      wreckSpinTimer: 0,
+    }));
+
+    let isDisposed = false;
     bots.forEach((b) => {
       b.mesh.visible = false;
+      const fallback = buildSleekCarMesh(b.color);
+      b.mesh.add(fallback);
       scene.add(b.mesh);
+
+      const loadBotGLB = (pathIndex) => {
+        if (isDisposed || pathIndex >= b.carSpec.modelPaths.length) return;
+        gltfLoader.load(
+          b.carSpec.modelPaths[pathIndex],
+          (gltf) => {
+            if (isDisposed) return;
+            while (b.mesh.children.length > 0) {
+              b.mesh.remove(b.mesh.children[0]);
+            }
+            const botModel = prepareNormalizedGLBModel(gltf.scene, flipRef.current);
+            b.mesh.add(botModel);
+          },
+          undefined,
+          () => loadBotGLB(pathIndex + 1)
+        );
+      };
+      loadBotGLB(0);
     });
 
     const keys = {};
@@ -1319,6 +1541,7 @@ function NitroHorizonGame() {
     let stuntTargetAngle = Math.PI * 2;
 
     let wreckTimer = 0;
+    let wreckRespawnIdx = 0;
     let wreckVelY = 0;
     let wreckDriftDir = 1;
     let respawnInvulnTimer = 0;
@@ -1332,6 +1555,9 @@ function NitroHorizonGame() {
     let wasForward = false;
     let idleRev = 0;
     let menuOrbitAngle = 0.6;
+
+    let elapsedRaceMs = 0;
+    let lastFrameTime = performance.now();
 
     const samplePoints = trackCurve.getPoints(360);
 
@@ -1347,39 +1573,40 @@ function NitroHorizonGame() {
 
     const triggerPlayerWreck = (closestIdx) => {
       if (wreckTimer > 0 || respawnInvulnTimer > 0) return;
-      wreckTimer = 75;
-      wreckVelY = 0.42;
+      wreckTimer = 55;
+      wreckRespawnIdx = closestIdx;
+      wreckVelY = 0.62;
       wreckDriftDir = Math.random() < 0.5 ? -1 : 1;
       cameraShake = 1.1;
       activeStunt = null;
+      playerCar.position.y = 0;
+      velocityY = 0;
       modelHolder.rotation.set(0, 0, 0);
+      modelHolder.position.set(0, 0, 0);
       spawnDebrisExplosion(playerCar.position);
       playTakedownCrunch();
       triggerBanner('WRECKED!', 'RESPAWNING...', 'red');
-
-      setTimeout(() => {
-        const safePt = samplePoints[closestIdx] || samplePoints[0];
-        const nextPt = samplePoints[(closestIdx + 3) % samplePoints.length];
-        playerCar.position.set(safePt.x, 0, safePt.z);
-        heading = Math.atan2(nextPt.x - safePt.x, nextPt.z - safePt.z);
-        speed = 0.65;
-        velocityY = 0;
-        modelHolder.rotation.set(0, 0, 0);
-        modelHolder.position.set(0, 0, 0);
-        respawnInvulnTimer = 90;
-      }, 1150);
     };
 
     let animationFrameId;
-    const animate = () => {
+    const animate = (nowTime) => {
       animationFrameId = requestAnimationFrame(animate);
+      const dtMs = Math.min(100, Math.max(0, nowTime - lastFrameTime));
+      lastFrameTime = nowTime;
 
       if (lastFlip !== flipRef.current) {
         lastFlip = flipRef.current;
-        modelHolder.children.forEach((child) => {
+        carMeshSlot.children.forEach((child) => {
           if (child.userData?.isGLBWrapper) {
             child.rotation.y = flipRef.current ? 0 : Math.PI;
           }
+        });
+        bots.forEach((b) => {
+          b.mesh.children.forEach((child) => {
+            if (child.userData?.isGLBWrapper) {
+              child.rotation.y = flipRef.current ? 0 : Math.PI;
+            }
+          });
         });
       }
 
@@ -1389,7 +1616,7 @@ function NitroHorizonGame() {
         if (d.life > 0) {
           d.life -= 1;
           d.mesh.position.add(d.vel);
-          d.vel.y -= 0.022;
+          d.vel.y -= 0.042;
           if (d.mesh.position.y < 0.08) {
             d.mesh.position.y = 0.08;
             d.vel.y *= -0.45;
@@ -1423,14 +1650,18 @@ function NitroHorizonGame() {
         return;
       }
 
+      if (mode === 'racing') {
+        elapsedRaceMs += dtMs;
+      }
+
       padRing.visible = false;
       bots.forEach((b) => (b.mesh.visible = true));
 
       if (respawnInvulnTimer > 0) {
         respawnInvulnTimer -= 1;
-        modelHolder.visible = Math.floor(respawnInvulnTimer / 5) % 2 === 0;
+        carMeshSlot.visible = Math.floor(respawnInvulnTimer / 5) % 2 === 0;
       } else {
-        modelHolder.visible = true;
+        carMeshSlot.visible = true;
       }
 
       const spec = previewCarRef.current;
@@ -1449,7 +1680,7 @@ function NitroHorizonGame() {
       }
       wasBoosting = wantsBoost;
 
-      if (!wantsThrottle && wasForward && speed > 1.3 && !isWrecked) {
+      if (!wantsThrottle && wasForward && speed > 1.8 && !isWrecked) {
         playExhaustPopAndTurbo();
       }
       wasForward = wantsThrottle;
@@ -1462,21 +1693,35 @@ function NitroHorizonGame() {
 
       if (isWrecked) {
         wreckTimer -= 1;
-        speed = THREE.MathUtils.lerp(speed, 0, 0.045);
+        speed = THREE.MathUtils.lerp(speed, 0, 0.06);
         modelHolder.position.y += wreckVelY;
-        wreckVelY -= 0.022;
+        wreckVelY -= 0.048;
         if (modelHolder.position.y < 0) {
           modelHolder.position.y = 0;
           wreckVelY = Math.abs(wreckVelY) * 0.35;
         }
-        modelHolder.rotation.z += 0.16 * wreckDriftDir;
-        modelHolder.rotation.x += 0.09;
+        modelHolder.rotation.z += 0.22 * wreckDriftDir;
+        modelHolder.rotation.x += 0.12;
+
+        if (wreckTimer === 0) {
+          const safePt = samplePoints[wreckRespawnIdx] || samplePoints[0];
+          const nextPt = samplePoints[(wreckRespawnIdx + 4) % samplePoints.length];
+          playerCar.position.set(safePt.x, 0, safePt.z);
+          playerCar.rotation.set(0, 0, 0);
+          heading = Math.atan2(nextPt.x - safePt.x, nextPt.z - safePt.z);
+          speed = 1.2;
+          velocityY = 0;
+          activeStunt = null;
+          modelHolder.rotation.set(0, 0, 0);
+          modelHolder.position.set(0, 0, 0);
+          respawnInvulnTimer = 90;
+        }
       } else {
         const maxSpeed = wantsBoost ? spec.nitroPower : spec.topSpeed;
         if (forward) {
-          speed = THREE.MathUtils.lerp(speed, maxSpeed, wantsBoost ? spec.accel * 1.8 : spec.accel);
+          speed = THREE.MathUtils.lerp(speed, maxSpeed, wantsBoost ? spec.accel * 1.9 : spec.accel);
         } else if (brake) {
-          speed = THREE.MathUtils.lerp(speed, -0.8, 0.05);
+          speed = THREE.MathUtils.lerp(speed, -1.2, 0.07);
         } else {
           speed = THREE.MathUtils.lerp(speed, 0, 0.025);
         }
@@ -1484,17 +1729,17 @@ function NitroHorizonGame() {
 
       if (wantsBoost) {
         nitro = Math.max(0, nitro - 0.5);
-        score += 2;
+        score += 3;
       } else {
-        nitro = Math.min(100, nitro + 0.15);
+        nitro = Math.min(100, nitro + 0.18);
       }
 
       const kmh = Math.max(0, Math.round(speed * 115));
-      const gear = Math.min(6, Math.max(1, Math.floor(kmh / 68) + 1));
+      const gear = Math.min(6, Math.max(1, Math.floor(kmh / 88) + 1));
       const rawRpm =
         mode === 'countdown'
           ? 1100 + idleRev * 7800
-          : 1200 + ((kmh % 68) / 68) * 7600 + (wantsBoost ? 950 : 0);
+          : 1200 + ((kmh % 88) / 88) * 7600 + (wantsBoost ? 950 : 0);
       const rpm = Math.min(9500, Math.round(rawRpm));
 
       if (gear > lastGear && canDrive) {
@@ -1502,7 +1747,7 @@ function NitroHorizonGame() {
       }
       lastGear = gear;
 
-      const isTurningHard = (left || right) && speed > 1.35 && playerCar.position.y <= 0.05;
+      const isTurningHard = (left || right) && speed > 2.0 && playerCar.position.y <= 0.05;
 
       if (soundEnabledRef.current && (mode === 'racing' || mode === 'countdown') && !isWrecked && audioRef.current) {
         const audio = audioRef.current;
@@ -1531,12 +1776,13 @@ function NitroHorizonGame() {
         stopContinuousAudio();
       }
 
-      leftFlame.visible = wantsBoost;
-      rightFlame.visible = wantsBoost;
-      if (wantsBoost) {
-        const pulse = 0.8 + Math.random() * 0.6;
-        leftFlame.scale.set(1, 1, pulse);
-        rightFlame.scale.set(1, 1, pulse);
+      leftFlame.visible = wantsBoost && !isWrecked;
+      rightFlame.visible = wantsBoost && !isWrecked;
+      if (wantsBoost && !isWrecked) {
+        const pulseZ = 0.85 + Math.random() * 0.65;
+        const pulseXY = 0.9 + Math.random() * 0.25;
+        leftFlame.scale.set(pulseXY, pulseXY, pulseZ);
+        rightFlame.scale.set(pulseXY, pulseXY, pulseZ);
       }
 
       if (Math.abs(speed) > 0.05 && !isWrecked) {
@@ -1564,13 +1810,7 @@ function NitroHorizonGame() {
         const closestPt = samplePoints[closestIdx];
         const pullDir = new THREE.Vector3().subVectors(closestPt, playerCar.position).setY(0).normalize();
         playerCar.position.addScaledVector(pullDir, distFromCenter - (roadWidth / 2 - 1.2));
-
-        if (kmh > 265 && !isWrecked && respawnInvulnTimer <= 0) {
-          triggerPlayerWreck(closestIdx);
-        } else {
-          speed *= 0.94;
-          cameraShake = Math.max(cameraShake, 0.25);
-        }
+        speed *= 0.96;
       }
 
       const playerTrackT = closestIdx / samplePoints.length;
@@ -1590,11 +1830,11 @@ function NitroHorizonGame() {
 
           let targetSpeedT = bot.baseSpeedT;
           if (gapToPlayer > 0.03) {
-            targetSpeedT = bot.baseSpeedT * 1.26;
+            targetSpeedT = bot.baseSpeedT * 1.28;
           } else if (gapToPlayer < -0.12) {
             targetSpeedT = bot.baseSpeedT * 0.92;
           }
-          bot.currentSpeedT = THREE.MathUtils.lerp(bot.currentSpeedT, targetSpeedT, 0.04);
+          bot.currentSpeedT = THREE.MathUtils.lerp(bot.currentSpeedT, targetSpeedT, 0.05);
 
           const prevT = bot.t;
           bot.t += bot.currentSpeedT;
@@ -1605,7 +1845,7 @@ function NitroHorizonGame() {
 
           bot.laneTimer -= 1;
           const distToPlayer = playerCar.position.distanceTo(bot.mesh.position);
-          if (distToPlayer < 24 && Math.abs(gapToPlayer) < 0.025 && bot.laneTimer < 90) {
+          if (distToPlayer < 26 && Math.abs(gapToPlayer) < 0.025 && bot.laneTimer < 90) {
             const alternatives = LANE_SLOTS.filter((l) => Math.abs(l - bot.targetOffset) > 4);
             bot.targetOffset = alternatives[Math.floor(Math.random() * alternatives.length)];
             bot.laneTimer = 140 + Math.floor(Math.random() * 100);
@@ -1615,7 +1855,7 @@ function NitroHorizonGame() {
           }
 
           const prevOffset = bot.offset;
-          bot.offset = THREE.MathUtils.lerp(bot.offset, bot.targetOffset, 0.035);
+          bot.offset = THREE.MathUtils.lerp(bot.offset, bot.targetOffset, 0.04);
           const lateralDelta = bot.offset - prevOffset;
 
           const pt = trackCurve.getPointAt(bot.t);
@@ -1625,15 +1865,15 @@ function NitroHorizonGame() {
           bot.mesh.position.copy(pt).addScaledVector(norm, bot.offset);
           const lookPoint = bot.mesh.position
             .clone()
-            .sub(tan)
-            .addScaledVector(norm, -lateralDelta * 1.8);
+            .add(tan)
+            .addScaledVector(norm, lateralDelta * 1.8);
           bot.mesh.lookAt(lookPoint);
 
           if (bot.wreckSpinTimer > 0) {
             bot.wreckSpinTimer -= 1;
-            bot.mesh.position.y = Math.sin((bot.wreckSpinTimer / 45) * Math.PI) * 2.4;
-            bot.mesh.rotation.y += 0.28;
-            bot.mesh.rotation.z += 0.18;
+            bot.mesh.position.y = Math.sin((bot.wreckSpinTimer / 35) * Math.PI) * 2.2;
+            bot.mesh.rotation.y += 0.34;
+            bot.mesh.rotation.z += 0.22;
           } else {
             bot.mesh.position.y = 0;
             bot.mesh.rotation.z = 0;
@@ -1643,7 +1883,7 @@ function NitroHorizonGame() {
             if (wantsBoost) {
               bot.t = Math.max(0, bot.t - 0.022);
               bot.currentSpeedT = bot.baseSpeedT * 0.35;
-              bot.wreckSpinTimer = 45;
+              bot.wreckSpinTimer = 35;
               nitro = Math.min(100, nitro + 35);
               score += 500;
               cameraShake = 0.65;
@@ -1651,7 +1891,7 @@ function NitroHorizonGame() {
               spawnDebrisExplosion(bot.mesh.position);
               playTakedownCrunch();
               triggerBanner('TAKEDOWN!', '+500 PTS • +50 COINS', 'cyan');
-            } else if (kmh > 255) {
+            } else if (kmh > 360) {
               triggerPlayerWreck(closestIdx);
             } else {
               speed *= 0.65;
@@ -1664,7 +1904,7 @@ function NitroHorizonGame() {
           const tan = trackCurve.getTangentAt(bot.t).normalize();
           const norm = new THREE.Vector3(-tan.z, 0, tan.x);
           bot.mesh.position.copy(pt).addScaledVector(norm, bot.offset);
-          bot.mesh.lookAt(bot.mesh.position.clone().sub(tan));
+          bot.mesh.lookAt(bot.mesh.position.clone().add(tan));
         }
 
         const botProgressNow = (bot.lap - 1) + bot.t;
@@ -1686,8 +1926,10 @@ function NitroHorizonGame() {
           playPerfectNitroSurge();
           triggerBanner('FINAL LAP!', '+1,500 PTS', 'cyan');
         } else if (gameStateRef.current === 'racing') {
-          const positionBonus = currentPosition === 1 ? 600 : currentPosition === 2 ? 350 : currentPosition === 3 ? 200 : 100;
+          const positionBonus =
+            currentPosition === 1 ? 600 : currentPosition === 2 ? 350 : currentPosition === 3 ? 200 : 100;
           const earned = positionBonus + Math.floor(score / 12);
+          setFinalRaceTime(formatRaceTime(elapsedRaceMs));
           setRaceReward(earned);
           setCoins((c) => c + earned);
           setGameState('finished');
@@ -1698,14 +1940,14 @@ function NitroHorizonGame() {
       ramps.forEach((ramp) => {
         if (
           !isWrecked &&
-          playerCar.position.distanceTo(ramp.position) < 5.2 &&
+          playerCar.position.distanceTo(ramp.position) < 5.4 &&
           playerCar.position.y < 0.65 &&
-          speed > 1.2
+          speed > 1.5
         ) {
           stuntAngle = 0;
           if (left || right) {
             activeStunt = 'flatspin';
-            velocityY = 0.48;
+            velocityY = 0.72;
             stuntTargetAngle = Math.PI * 2;
             nitro = Math.min(100, nitro + 35);
             score += 350;
@@ -1713,7 +1955,7 @@ function NitroHorizonGame() {
             triggerBanner('360° FLAT SPIN!', '+350 PTS • +35 COINS', 'fuchsia');
           } else if (wantsBoost) {
             activeStunt = 'mega';
-            velocityY = 0.56;
+            velocityY = 0.85;
             stuntTargetAngle = Math.PI * 4;
             nitro = Math.min(100, nitro + 40);
             score += 450;
@@ -1721,7 +1963,7 @@ function NitroHorizonGame() {
             triggerBanner('DOUBLE BARREL ROLL!', '+450 PTS • +45 COINS', 'amber');
           } else {
             activeStunt = 'barrel';
-            velocityY = 0.44;
+            velocityY = 0.68;
             stuntTargetAngle = Math.PI * 2;
             nitro = Math.min(100, nitro + 25);
             score += 250;
@@ -1734,10 +1976,10 @@ function NitroHorizonGame() {
 
       if (!isWrecked && (playerCar.position.y > 0 || velocityY > 0)) {
         playerCar.position.y += velocityY;
-        velocityY -= 0.017;
+        velocityY -= 0.048;
 
         if (activeStunt) {
-          const rotSpeed = activeStunt === 'mega' ? 0.24 : 0.17;
+          const rotSpeed = activeStunt === 'mega' ? 0.52 : 0.38;
           stuntAngle += rotSpeed;
           if (activeStunt === 'flatspin') {
             modelHolder.rotation.y = stuntAngle;
@@ -1755,7 +1997,7 @@ function NitroHorizonGame() {
           velocityY = 0;
           activeStunt = null;
           modelHolder.rotation.set(0, 0, 0);
-          cameraShake = Math.max(cameraShake, 0.3);
+          cameraShake = Math.max(cameraShake, 0.35);
           playTakedownCrunch();
         }
       }
@@ -1772,12 +2014,12 @@ function NitroHorizonGame() {
         }
       });
 
-      const targetFov = wantsBoost ? 82 : 62 + speed * 4.5;
-      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.1);
+      const targetFov = wantsBoost ? 84 : 62 + speed * 3.8;
+      camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 0.12);
       camera.updateProjectionMatrix();
 
       const camOffset = new THREE.Vector3(-Math.sin(heading) * 10, 4.4, -Math.cos(heading) * 10);
-      camera.position.lerp(playerCar.position.clone().add(camOffset), 0.14);
+      camera.position.lerp(playerCar.position.clone().add(camOffset), 0.18);
 
       if (cameraShake > 0.01) {
         camera.position.x += (Math.random() - 0.5) * cameraShake;
@@ -1801,13 +2043,14 @@ function NitroHorizonGame() {
         score,
         lap: currentLap,
         position: currentPosition,
+        raceTimeMs: elapsedRaceMs,
         minimapPath: minimapData.svgPath,
         playerDot: minimapData.project(playerCar.position.x, playerCar.position.z),
         botDots,
       });
     };
 
-    animate();
+    animationFrameId = requestAnimationFrame(animate);
 
     const handleResize = () => {
       if (!container) return;
@@ -1818,6 +2061,7 @@ function NitroHorizonGame() {
     window.addEventListener('resize', handleResize);
 
     return () => {
+      isDisposed = true;
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -1840,13 +2084,13 @@ function NitroHorizonGame() {
 
       {/* GARAGE & TRACK SELECTOR OVERLAY */}
       {gameState === 'menu' && (
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/75 flex flex-col justify-between p-5 md:p-7 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-slate-950/75 flex flex-col justify-between p-4 md:p-6 pointer-events-none">
           <div className="flex flex-wrap justify-between items-start gap-4 pointer-events-auto">
             <div>
-              <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-1.5">
-                Barrel Rolls • 360° Flat Spins • Built-In Procedural Audio
+              <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-1">
+                5 Maps • 7-Car Garage • Random 3 Rivals from Garage
               </div>
-              <h1 className="text-4xl md:text-5xl font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-fuchsia-500">
+              <h1 className="text-3xl md:text-5xl font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-fuchsia-500">
                 NITRO HORIZON 3D
               </h1>
             </div>
@@ -1879,7 +2123,7 @@ function NitroHorizonGame() {
             </div>
           </div>
 
-          <div className="self-center text-center mt-auto mb-2.5">
+          <div className="self-center text-center mt-auto mb-2">
             <div className="inline-flex items-center gap-2 bg-slate-950/85 border border-slate-700/80 backdrop-blur-md px-4 py-1.5 rounded-full">
               <span className="text-sm font-black tracking-wide text-white">
                 {previewCar.name}
@@ -1890,12 +2134,12 @@ function NitroHorizonGame() {
             </div>
           </div>
 
-          <div className="w-full max-w-5xl mx-auto bg-slate-900/90 border border-slate-700/80 backdrop-blur-md p-4 rounded-2xl shadow-2xl pointer-events-auto">
-            <div className="mb-3.5 pb-3 border-b border-slate-800">
-              <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
-                1. Select Circuit Location
+          <div className="w-full max-w-6xl mx-auto bg-slate-900/90 border border-slate-700/80 backdrop-blur-md p-4 rounded-2xl shadow-2xl pointer-events-auto">
+            <div className="mb-3 pb-2.5 border-b border-slate-800">
+              <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                1. Select Circuit Location (5 Maps)
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                 {TRACKS.map((track) => {
                   const active = selectedTrackId === track.id;
                   return (
@@ -1905,43 +2149,41 @@ function NitroHorizonGame() {
                         setSelectedTrackId(track.id);
                         playMechanicalClick(240);
                       }}
-                      className={`px-3.5 py-2.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
+                      className={`px-3 py-2 rounded-xl border text-left transition cursor-pointer flex items-center justify-between ${
                         active
                           ? 'bg-slate-800 border-cyan-400 shadow-md shadow-cyan-500/15'
                           : 'bg-slate-950/70 border-slate-800 hover:border-slate-600'
                       }`}
                     >
-                      <div>
-                        <div className="text-xs font-black text-white flex items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="text-xs font-black text-white flex items-center gap-1.5 truncate">
                           <span
-                            className="w-2.5 h-2.5 rounded-full"
+                            className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: track.accentHex }}
                           />
-                          {track.name}
+                          <span className="truncate">{track.name}</span>
                         </div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">{track.subtitle}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                          {track.subtitle}
+                        </div>
                       </div>
-                      {active && (
-                        <span className="text-[10px] font-black text-cyan-400 uppercase">
-                          SELECTED
-                        </span>
-                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-1.5">
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                2. Select Supercar ({unlockedCars.length}/{CARS.length} Unlocked)
+                2. Select Supercar ({unlockedCars.length}/{CARS.length} Unlocked • 3 Random Rivals Picked From Here)
               </span>
               <span className="text-[11px] text-slate-400 hidden sm:block">
                 Steer on ramps for 360° Flat Spins • Boost on ramps for Double Barrel Rolls
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3.5">
+            {/* 7-Car Responsive Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
               {CARS.map((car) => {
                 const owned = unlockedCars.includes(car.id);
                 const isEquipped = equippedCarId === car.id;
@@ -1952,7 +2194,7 @@ function NitroHorizonGame() {
                   <div
                     key={car.id}
                     onClick={() => handleSelectOrBuyCar(car)}
-                    className={`p-3 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
+                    className={`p-2.5 rounded-xl border transition cursor-pointer flex flex-col justify-between ${
                       isPreviewing
                         ? 'bg-slate-800 border-cyan-400 shadow-lg shadow-cyan-500/20'
                         : 'bg-slate-950/70 border-slate-800 hover:border-slate-600'
@@ -1960,58 +2202,55 @@ function NitroHorizonGame() {
                   >
                     <div>
                       <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-xs font-black text-white truncate">{car.name}</span>
-                        {isEquipped && (
-                          <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300">
-                            READY
-                          </span>
-                        )}
+                        <span className="text-[11px] font-black text-white truncate" title={car.name}>
+                          {car.name}
+                        </span>
                       </div>
 
-                      <div className="space-y-1.5 my-2 text-[10px] text-slate-400">
+                      <div className="space-y-1.5 my-1.5 text-[9px] text-slate-400">
                         <div>
                           <div className="flex justify-between">
-                            <span>TOP SPEED</span>
-                            <span>{Math.round(car.topSpeed * 115)} KM/H</span>
+                            <span>SPEED</span>
+                            <span>{Math.round(car.topSpeed * 115)}</span>
                           </div>
-                          <div className="w-full h-1.5 bg-slate-800 rounded-full mt-0.5">
+                          <div className="w-full h-1 bg-slate-800 rounded-full mt-0.5">
                             <div
                               className="h-full bg-cyan-400 rounded-full"
-                              style={{ width: `${(car.topSpeed / 3.35) * 100}%` }}
+                              style={{ width: `${(car.topSpeed / 5.2) * 100}%` }}
                             />
                           </div>
                         </div>
                         <div>
                           <div className="flex justify-between">
                             <span>NITRO</span>
-                            <span>{Math.round(car.nitroPower * 115)} KM/H</span>
+                            <span>{Math.round(car.nitroPower * 115)}</span>
                           </div>
-                          <div className="w-full h-1.5 bg-slate-800 rounded-full mt-0.5">
+                          <div className="w-full h-1 bg-slate-800 rounded-full mt-0.5">
                             <div
                               className="h-full bg-fuchsia-400 rounded-full"
-                              style={{ width: `${(car.nitroPower / 4.95) * 100}%` }}
+                              style={{ width: `${(car.nitroPower / 7.0) * 100}%` }}
                             />
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-800/80 text-center">
+                    <div className="pt-1.5 border-t border-slate-800/80 text-center">
                       {isEquipped ? (
-                        <span className="text-xs font-black text-cyan-400">EQUIPPED</span>
+                        <span className="text-[10px] font-black text-cyan-400">EQUIPPED</span>
                       ) : owned ? (
-                        <span className="text-xs font-bold text-slate-300">CLICK TO EQUIP</span>
+                        <span className="text-[10px] font-bold text-slate-300">EQUIP</span>
                       ) : (
                         <button
                           onClick={(e) => handleUnlockCar(e, car)}
                           disabled={!canAfford}
-                          className={`w-full py-1 rounded-lg text-xs font-black transition ${
+                          className={`w-full py-1 rounded-lg text-[10px] font-black transition ${
                             canAfford
                               ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 cursor-pointer'
                               : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                           }`}
                         >
-                          UNLOCK • {car.price} COINS
+                          {car.price.toLocaleString()} 💰
                         </button>
                       )}
                     </div>
@@ -2078,13 +2317,20 @@ function NitroHorizonGame() {
               </div>
               <div className="h-8 w-px bg-slate-700" />
               <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase">Time</div>
+                <div className="text-xl font-black text-emerald-300 font-mono">
+                  {formatRaceTime(hud.raceTimeMs)}
+                </div>
+              </div>
+              <div className="h-8 w-px bg-slate-700 hidden md:block" />
+              <div className="hidden md:block">
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Score</div>
-                <div className="text-2xl font-black text-white font-mono">
+                <div className="text-xl font-black text-white font-mono">
                   {hud.score.toLocaleString()}
                 </div>
               </div>
-              <div className="h-8 w-px bg-slate-700 hidden sm:block" />
-              <div className="hidden sm:block">
+              <div className="h-8 w-px bg-slate-700 hidden lg:block" />
+              <div className="hidden lg:block">
                 <div className="text-[10px] font-bold text-slate-400 uppercase">Coins</div>
                 <div className="text-xl font-black text-amber-400 font-mono">
                   {coins.toLocaleString()}
@@ -2194,7 +2440,7 @@ function NitroHorizonGame() {
                 <div className="text-[9px] font-bold text-slate-400 uppercase">Gear</div>
                 <div className="text-2xl font-black font-mono text-amber-400">{hud.gear}</div>
               </div>
-              <AnalogDial value={hud.speed} max={500} label="KM/H" accentColor={activeTrack.accentHex} />
+              <AnalogDial value={hud.speed} max={820} label="KM/H" accentColor={activeTrack.accentHex} />
             </div>
           </div>
         </>
@@ -2205,7 +2451,7 @@ function NitroHorizonGame() {
         <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-md flex items-center justify-center z-20">
           <div className="bg-slate-900 border border-cyan-500/40 p-7 rounded-2xl text-center w-full max-w-sm shadow-2xl">
             <div className="text-xs font-bold tracking-widest text-cyan-400 uppercase mb-1">
-              {activeTrack.name}
+              {activeTrack.name} • {formatRaceTime(hud.raceTimeMs)}
             </div>
             <h2 className="text-3xl font-black italic text-white mb-6">RACE PAUSED</h2>
 
@@ -2240,11 +2486,17 @@ function NitroHorizonGame() {
             <div className="inline-block px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black uppercase tracking-widest mb-2">
               Finished {formatOrdinal(hud.position)} Place
             </div>
-            <h2 className="text-3xl font-black text-cyan-400 mb-2">CIRCUIT COMPLETE!</h2>
-            <p className="text-slate-300 mb-2">
-              Stunt Score:{' '}
-              <span className="font-mono font-bold text-white">{hud.score.toLocaleString()}</span>
-            </p>
+            <h2 className="text-3xl font-black text-cyan-400 mb-3">CIRCUIT COMPLETE!</h2>
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Finish Time:</span>
+                <span className="font-mono font-black text-emerald-300">{finalRaceTime}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Stunt Score:</span>
+                <span className="font-mono font-bold text-white">{hud.score.toLocaleString()}</span>
+              </div>
+            </div>
             <p className="text-amber-400 font-black text-lg mb-5">
               +{raceReward.toLocaleString()} COINS EARNED!
             </p>
