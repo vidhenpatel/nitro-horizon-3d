@@ -1,6 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+class GameErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMessage: '' };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMessage: error?.message || String(error) };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-screen h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center font-sans">
+          <div className="max-w-md bg-slate-900 border border-red-500/50 rounded-2xl p-6 shadow-2xl">
+            <h2 className="text-xl font-black text-red-400 mb-2">RENDER ERROR DETECTED</h2>
+            <p className="text-xs font-mono bg-slate-950 text-red-300 p-3 rounded-lg mb-4 break-words">
+              {this.state.errorMessage}
+            </p>
+            <button
+              onClick={() => {
+                localStorage.clear();
+                window.location.reload();
+              }}
+              className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black rounded-xl text-xs cursor-pointer"
+            >
+              RESET DATA & RELOAD
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const CARS = [
   {
@@ -477,13 +513,26 @@ function populateBiomeScenery(envGroup, trackId, trackCurve, roadWidth) {
   }
 }
 
-export default function App() {
+function NitroHorizonGame() {
   const mountRef = useRef(null);
 
-  const [coins, setCoins] = useState(() => Number(localStorage.getItem('nh_coins') ?? 650));
-  const [unlockedCars, setUnlockedCars] = useState(() =>
-    JSON.parse(localStorage.getItem('nh_cars') ?? '["street"]')
-  );
+  const [coins, setCoins] = useState(() => {
+    try {
+      const val = Number(localStorage.getItem('nh_coins'));
+      return Number.isFinite(val) && localStorage.getItem('nh_coins') !== null ? val : 650;
+    } catch {
+      return 650;
+    }
+  });
+
+  const [unlockedCars, setUnlockedCars] = useState(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('nh_cars') || '["street"]');
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['street'];
+    } catch {
+      return ['street'];
+    }
+  });
 
   const [equippedCarId, setEquippedCarId] = useState('street');
   const [previewCarId, setPreviewCarId] = useState('street');
@@ -515,11 +564,19 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('nh_coins', String(coins));
+    try {
+      localStorage.setItem('nh_coins', String(coins));
+    } catch {
+      // Ignore storage quota errors
+    }
   }, [coins]);
 
   useEffect(() => {
-    localStorage.setItem('nh_cars', JSON.stringify(unlockedCars));
+    try {
+      localStorage.setItem('nh_cars', JSON.stringify(unlockedCars));
+    } catch {
+      // Ignore storage quota errors
+    }
   }, [unlockedCars]);
 
   const previewCar = CARS.find((c) => c.id === previewCarId) || CARS[0];
@@ -643,7 +700,6 @@ export default function App() {
     swapCarModelInScene(car);
   }, [previewCarId]);
 
-  // 100% Pure Web Audio API Procedural Car Synthesizer (Zero External Files Needed)
   const audioRef = useRef(null);
 
   const initAudio = () => {
@@ -759,7 +815,6 @@ export default function App() {
     };
   };
 
-  // Engine Ignition Crank Sound (Plays once at race start)
   const playEngineIgnition = () => {
     if (!soundEnabledRef.current || !audioRef.current) return;
     const { ctx } = audioRef.current;
@@ -1007,13 +1062,13 @@ export default function App() {
 
     const camera = new THREE.PerspectiveCamera(
       62,
-      container.clientWidth / container.clientHeight,
+      (container.clientWidth || window.innerWidth) / (container.clientHeight || window.innerHeight),
       0.1,
       3000
     );
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
@@ -1280,6 +1335,16 @@ export default function App() {
 
     const samplePoints = trackCurve.getPoints(360);
 
+    const stopContinuousAudio = () => {
+      if (audioRef.current) {
+        const t = audioRef.current.ctx.currentTime;
+        audioRef.current.masterEngineGain.gain.setTargetAtTime(0, t, 0.04);
+        audioRef.current.turboWhineGain.gain.setTargetAtTime(0, t, 0.04);
+        audioRef.current.nitroGain.gain.setTargetAtTime(0, t, 0.04);
+        audioRef.current.screechGain.gain.setTargetAtTime(0, t, 0.04);
+      }
+    };
+
     const triggerPlayerWreck = (closestIdx) => {
       if (wreckTimer > 0 || respawnInvulnTimer > 0) return;
       wreckTimer = 75;
@@ -1337,16 +1402,6 @@ export default function App() {
           if (d.life <= 0) d.mesh.visible = false;
         }
       });
-
-      const stopContinuousAudio = () => {
-        if (audioRef.current) {
-          const t = audioRef.current.ctx.currentTime;
-          audioRef.current.masterEngineGain.gain.setTargetAtTime(0, t, 0.04);
-          audioRef.current.turboWhineGain.gain.setTargetAtTime(0, t, 0.04);
-          audioRef.current.nitroGain.gain.setTargetAtTime(0, t, 0.04);
-          audioRef.current.screechGain.gain.setTargetAtTime(0, t, 0.04);
-        }
-      };
 
       if (mode === 'paused') {
         stopContinuousAudio();
@@ -1449,7 +1504,6 @@ export default function App() {
 
       const isTurningHard = (left || right) && speed > 1.35 && playerCar.position.y <= 0.05;
 
-      // Pure Procedural Web Audio Engine Loop (Zero External Files)
       if (soundEnabledRef.current && (mode === 'racing' || mode === 'countdown') && !isWrecked && audioRef.current) {
         const audio = audioRef.current;
         const now = audio.ctx.currentTime;
@@ -1757,9 +1811,9 @@ export default function App() {
 
     const handleResize = () => {
       if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.aspect = (container.clientWidth || window.innerWidth) / (container.clientHeight || window.innerHeight);
       camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setSize(container.clientWidth || window.innerWidth, container.clientHeight || window.innerHeight);
     };
     window.addEventListener('resize', handleResize);
 
@@ -2212,5 +2266,13 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <GameErrorBoundary>
+      <NitroHorizonGame />
+    </GameErrorBoundary>
   );
 }
